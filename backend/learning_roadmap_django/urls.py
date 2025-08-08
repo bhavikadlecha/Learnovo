@@ -12,7 +12,8 @@ def root_view(request):
 urlpatterns = [
     path('', root_view),  # root path
     path('admin/', admin.site.urls),
-    path('roadmap/', include('roadmap.urls')),
-    path('api/', include('accounts.urls')), 
-    # Note: Token endpoints are now handled in accounts.urls
+    path('api/roadmap/', include('roadmap.urls')),
+    path('api/users/', include('users.urls')), 
+    path('api/learning/', include('learning.urls')),
+    # Note: Token endpoints are now handled in users.urls
 ]

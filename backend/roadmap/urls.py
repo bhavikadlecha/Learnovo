@@ -8,5 +8,8 @@ urlpatterns = [
     path('studyplan/create/', views.create_study_plan, name='create_study_plan'),
     path('delete_plan/<int:pk>/', views.delete_study_plan, name='delete_study_plan'),
     path('roadmap/get_plan/<int:pk>/', views.get_studyplan_detail, name='get_studyplan_detail'),
-
+    path('roadmap_cards/', views.get_roadmap_cards, name='get_roadmap_cards'),
+    path('create_from_form/', views.create_roadmap_from_form, name='create_roadmap_from_form'),
+    path('user_roadmaps/', views.get_user_roadmaps, name='get_user_roadmaps'),
+    path('roadmap_detail/<int:roadmap_id>/', views.get_roadmap_detail, name='get_roadmap_detail'),
 ]

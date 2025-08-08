@@ -1,6 +1,6 @@
 # serializers.py
 from rest_framework import serializers
-from .models import StudyPlan, RoadmapTopic
+from .models import StudyPlan, RoadmapTopic, UserRoadmap
 
 class RoadmapSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,4 +13,11 @@ class StudyPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudyPlan
         fields = '__all__'
+
+class UserRoadmapSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserRoadmap
+        fields = ['id', 'title', 'description', 'subject', 'proficiency', 'weekly_hours', 
+                 'deadline', 'roadmap_data', 'created_at', 'updated_at', 'is_completed']
+        read_only_fields = ['created_at', 'updated_at']
 

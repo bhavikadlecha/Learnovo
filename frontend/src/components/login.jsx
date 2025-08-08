@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
     identifier: '', // Can be username or email
@@ -22,20 +24,30 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8000/api/token/', {
+      // First, login to get the token
+      const response = await axios.post('http://localhost:8000/api/users/login/', {
         identifier: formData.identifier,
         password: formData.password,
       });
 
-      // Save tokens to local storage
-      localStorage.setItem('access', response.data.access);
-      localStorage.setItem('refresh', response.data.refresh);
+      // The response should contain token and user data
+      const { token, user } = response.data;
 
-      // Redirect user to dashboard or home
+      // Use the auth context to login
+      login(user, {
+        access: token,
+        refresh: token // For now, using the same token for both
+      });
+
+      // Redirect user to dashboard
       navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
-      setError('Invalid username/email or password');
+      if (err.response?.data?.error || err.response?.data?.non_field_errors) {
+        setError(err.response.data.error || err.response.data.non_field_errors[0] || 'Login failed');
+      } else {
+        setError('Invalid username/email or password');
+      }
     } finally {
       setIsLoading(false);
     }

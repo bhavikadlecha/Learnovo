@@ -15,3 +15,58 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Navbar hover effects */
+.nav-link {
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-link::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.nav-link:hover::before {
+  left: 100%;
+}
+
+.nav-link:hover {
+  background: rgba(255,255,255,0.1);
+  transform: translateY(-2px);
+}
+
+/* Login button hover effect */
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+/* Dropdown animations */
+.dropdown-enter {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+}
+
+.dropdown-enter-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: all 200ms ease-out;
+}
+
+.dropdown-exit {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.dropdown-exit-active {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+  transition: all 150ms ease-in;
+}

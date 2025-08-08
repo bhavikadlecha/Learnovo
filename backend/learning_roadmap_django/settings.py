@@ -29,11 +29,15 @@ INSTALLED_APPS = [
     
     # 3rd-party
     'rest_framework',
+    'rest_framework.authtoken',  # Added for token authentication
     'rest_framework_simplejwt',
     'corsheaders',  # ✅ Added for CORS
-    'accounts',  # Local
-    # Local
+    
+    # Local apps
+    'users',
+    'accounts',
     'roadmap',
+    'learning',
 ]
 
 MIDDLEWARE = [
@@ -99,6 +103,9 @@ STATIC_URL = 'static/'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Custom User Model
+AUTH_USER_MODEL = 'users.CustomUser'
 
 # REST Framework
 REST_FRAMEWORK = {

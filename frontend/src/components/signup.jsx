@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+
 const Signup = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
     email: '',
+    first_name: '',
+    last_name: '',
     password: '',
-    confirmPassword: '',
+    confirm_password: '',
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -19,24 +24,47 @@ const Signup = () => {
     e.preventDefault();
     setError('');
     
-    if (formData.password !== formData.confirmPassword) {
+    if (formData.password !== formData.confirm_password) {
       setError("Passwords do not match");
       return;
     }
 
     setIsLoading(true);
     try {
-      await axios.post("http://localhost:8000/api/signup/", {
+      const response = await axios.post("http://localhost:8000/api/users/register/", {
         username: formData.username,
         email: formData.email,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
         password: formData.password,
+        confirm_password: formData.confirm_password,
       });
-      alert("Account created successfully! Please login.");
-      navigate("/login");
+
+      // Registration successful - auto login the user
+      const { token, user } = response.data;
+      
+      login(user, {
+        access: token,
+        refresh: token
+      });
+
+      // Redirect to dashboard
+      navigate("/dashboard");
     } catch (error) {
       console.error("Signup failed:", error);
-      if (error.response?.data?.error) {
-        setError(error.response.data.error);
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.username) {
+          setError(`Username: ${errorData.username[0]}`);
+        } else if (errorData.email) {
+          setError(`Email: ${errorData.email[0]}`);
+        } else if (errorData.password) {
+          setError(`Password: ${errorData.password[0]}`);
+        } else if (errorData.error) {
+          setError(errorData.error);
+        } else {
+          setError("Signup failed. Please try again.");
+        }
       } else {
         setError("Signup failed. Please try again.");
       }
@@ -121,6 +149,40 @@ const Signup = () => {
             </div>
           </div>
 
+          {/* Name Fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-2">
+                First Name
+              </label>
+              <input
+                id="first_name"
+                type="text"
+                name="first_name"
+                placeholder="First name"
+                required
+                value={formData.first_name}
+                onChange={handleChange}
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+              />
+            </div>
+            <div>
+              <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-2">
+                Last Name
+              </label>
+              <input
+                id="last_name"
+                type="text"
+                name="last_name"
+                placeholder="Last name"
+                required
+                value={formData.last_name}
+                onChange={handleChange}
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+              />
+            </div>
+          </div>
+
           {/* Password Input */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
@@ -147,7 +209,7 @@ const Signup = () => {
 
           {/* Confirm Password Input */}
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 mb-2">
               Confirm Password
             </label>
             <div className="relative">
@@ -157,12 +219,12 @@ const Signup = () => {
                 </svg>
               </div>
               <input
-                id="confirmPassword"
+                id="confirm_password"
                 type="password"
-                name="confirmPassword"
+                name="confirm_password"
                 placeholder="Confirm your password"
                 required
-                value={formData.confirmPassword}
+                value={formData.confirm_password}
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
               />

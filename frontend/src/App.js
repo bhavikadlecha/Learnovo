@@ -11,8 +11,11 @@ import Profile from './components/Profile';
 import Form from './components/Form';
 import Progress from './components/Progress';
 import RoadmapPage from './components/RoadmapPage';
+import Settings from './components/Settings';
+import Help from './components/Help';
 import PrivateRoute from './components/PrivateRoute';
 import { ThemeProvider } from './components/ThemeContext';
+import { AuthProvider } from './context/AuthContext';
 
 function ScrollToHashElement() {
   const location = useLocation();
@@ -40,48 +43,56 @@ function App() {
 
   // Render the main application layout and routes
   return (
-    <ThemeProvider>
-      {showNavbar && <Navbar />}
-      <ScrollToHashElement />
+    <AuthProvider>
+      <ThemeProvider>
+        {showNavbar && <Navbar />}
+        <ScrollToHashElement />
 
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Home />} />
-        <Route path="/about" element={<About />} />
-        {/* <Route path="/UserProgress" element={<StudyHeatmap />} /> */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/form" element={<Form />} />
-        <Route path="/roadmap" element={<RoadmapPage />} />
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/help" element={<Help />} />
+          {/* <Route path="/UserProgress" element={<StudyHeatmap />} /> */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/form" element={<Form />} />
+          <Route path="/roadmap" element={<RoadmapPage />} />
 
-        {/* Protected Routes under AuthenticatedLayout */}
-        <Route path="/dashboard" element={
-          <PrivateRoute>
-            <StudyPlan />
-          </PrivateRoute>
-        } />
-        <Route path="/profile" element={
-          <PrivateRoute>
-            <Profile />
-          </PrivateRoute>
-        } />
-        <Route path="/studyplan" element={
-          <PrivateRoute>
-            <StudyPlan />
-          </PrivateRoute>
-        } />
-        <Route path="/roadmap/:id" element={
-          <PrivateRoute>
-            <RoadmapPage />
-          </PrivateRoute>
-        } />
-        <Route path="/progress" element={
-          <PrivateRoute>
-            <Progress />
-          </PrivateRoute>
-        } />
-      </Routes>
-    </ThemeProvider>
+          {/* Protected Routes */}
+          <Route path="/dashboard" element={
+            <PrivateRoute>
+              <StudyPlan />
+            </PrivateRoute>
+          } />
+          <Route path="/profile" element={
+            <PrivateRoute>
+              <Profile />
+            </PrivateRoute>
+          } />
+          <Route path="/settings" element={
+            <PrivateRoute>
+              <Settings />
+            </PrivateRoute>
+          } />
+          <Route path="/studyplan" element={
+            <PrivateRoute>
+              <StudyPlan />
+            </PrivateRoute>
+          } />
+          <Route path="/roadmap/:id" element={
+            <PrivateRoute>
+              <RoadmapPage />
+            </PrivateRoute>
+          } />
+          <Route path="/progress" element={
+            <PrivateRoute>
+              <Progress />
+            </PrivateRoute>
+          } />
+        </Routes>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 
