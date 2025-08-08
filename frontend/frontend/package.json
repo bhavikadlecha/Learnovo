@@ -1,0 +1,64 @@
+{
+  "name": "edu",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@reactflow/controls": "^11.2.14",
+    "@reactflow/core": "^11.11.4",
+    "@reactflow/minimap": "^11.7.14",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "axios": "^1.11.0",
+    "d3": "^7.9.0",
+    "dagre": "^0.8.5",
+    "date-fns": "^4.1.0",
+    "html2canvas": "^1.4.1",
+    "lucide-react": "^0.534.0",
+    "react": "^18.2.0",
+    "react-calendar": "^6.0.0",
+    "react-calendar-heatmap": "^1.10.0",
+    "react-d3-tree": "^3.6.6",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.6.2",
+    "react-router-hash-link": "^2.4.3",
+    "react-scripts": "5.0.1",
+    "reactflow": "^11.11.4",
+    "recharts": "^3.0.2",
+    "web-vitals": "^2.1.4",
+    "zustand": "^5.0.7"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1",
+    "tailwindcss": "^3.4.3",
+    "tailwindcss-cli": "^0.1.2"
+  }
+}
