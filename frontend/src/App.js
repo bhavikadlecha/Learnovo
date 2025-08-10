@@ -5,12 +5,15 @@ import Navbar from './components/Navbar';
 import Home from './components/Home';
 import About from './components/About';
 import StudyPlan from './components/StudyPlan';
+import SimpleRoadmapTest from './components/SimpleRoadmapTest';
 import Signup from './components/signup';
 import Login from './components/login';
 import Profile from './components/Profile';
 import Form from './components/Form';
 import Progress from './components/Progress';
 import RoadmapPage from './components/RoadmapPage';
+import TestRoadmapPage from './components/TestRoadmapPage';
+import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import Help from './components/Help';
 import PrivateRoute from './components/PrivateRoute';
@@ -58,11 +61,12 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/form" element={<Form />} />
           <Route path="/roadmap" element={<RoadmapPage />} />
+          <Route path="/test-roadmap" element={<TestRoadmapPage />} />
 
           {/* Protected Routes */}
           <Route path="/dashboard" element={
             <PrivateRoute>
-              <StudyPlan />
+              <Dashboard />
             </PrivateRoute>
           } />
           <Route path="/profile" element={
@@ -80,11 +84,8 @@ function App() {
               <StudyPlan />
             </PrivateRoute>
           } />
-          <Route path="/roadmap/:id" element={
-            <PrivateRoute>
-              <RoadmapPage />
-            </PrivateRoute>
-          } />
+          
+          
           <Route path="/progress" element={
             <PrivateRoute>
               <Progress />

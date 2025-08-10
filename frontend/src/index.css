@@ -70,3 +70,34 @@ code {
   transform: translateY(-10px) scale(0.95);
   transition: all 150ms ease-in;
 }
+
+/* Calendar Heatmap Styles */
+.react-calendar-heatmap .color-empty {
+  fill: #eeeeee;
+}
+
+.react-calendar-heatmap .color-scale-1 {
+  fill: #ffdd9e;
+}
+
+.react-calendar-heatmap .color-scale-2 {
+  fill: #ffc658;
+}
+
+.react-calendar-heatmap .color-scale-3 {
+  fill: #8fd14f;
+}
+
+.react-calendar-heatmap .color-scale-4 {
+  fill: #4caf50;
+}
+
+.react-calendar-heatmap text {
+  font-size: 10px;
+  fill: #aaa;
+}
+
+.react-calendar-heatmap rect:hover {
+  stroke: #555;
+  stroke-width: 1px;
+}

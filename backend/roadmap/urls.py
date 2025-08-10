@@ -11,5 +11,6 @@ urlpatterns = [
     path('roadmap_cards/', views.get_roadmap_cards, name='get_roadmap_cards'),
     path('create_from_form/', views.create_roadmap_from_form, name='create_roadmap_from_form'),
     path('user_roadmaps/', views.get_user_roadmaps, name='get_user_roadmaps'),
+    path('user_roadmaps/<int:roadmap_id>/', views.delete_user_roadmap, name='delete_user_roadmap'),
     path('roadmap_detail/<int:roadmap_id>/', views.get_roadmap_detail, name='get_roadmap_detail'),
 ]

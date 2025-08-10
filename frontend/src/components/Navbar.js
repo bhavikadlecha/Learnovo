@@ -214,19 +214,13 @@ function Navbar() {
         >
           <span>About</span>
         </NavLink>
+        
         <NavLink 
-          to="/courses" 
+          to="/studyplan" 
           style={navLinkStyle}
           className="nav-link"
         >
-          <span>Courses</span>
-        </NavLink>
-        <NavLink 
-          to="/roadmap" 
-          style={navLinkStyle}
-          className="nav-link"
-        >
-          <span>Roadmap</span>
+          <span>Study Plan</span>
         </NavLink>
         {isLoggedIn && (
           <NavLink 

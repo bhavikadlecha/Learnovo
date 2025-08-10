@@ -5,14 +5,16 @@ from .models import StudyPlan, RoadmapTopic, UserRoadmap
 class RoadmapSerializer(serializers.ModelSerializer):
     class Meta:
         model = RoadmapTopic
-        fields = ['id', 'title', 'description', 'is_completed', 'created_at']
+        fields = ['id', 'title', 'description', 'is_completed', 'created_at', 'prerequisites']
 
 class StudyPlanSerializer(serializers.ModelSerializer):
     roadmaps = RoadmapSerializer(many=True, read_only=True)
 
     class Meta:
         model = StudyPlan
-        fields = '__all__'
+        fields = ['id', 'main_topic', 'available_time', 'created_at', 'roadmaps', 'user']
+        read_only_fields = ['id', 'created_at']
+        extra_kwargs = {'user': {'required': False}}
 
 class UserRoadmapSerializer(serializers.ModelSerializer):
     class Meta:

@@ -32,6 +32,7 @@ class RoadmapTopic(models.Model):
     description = models.TextField(blank=True, null=True)
     is_completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    prerequisites = models.ManyToManyField('self', symmetrical=False, blank=True)
 
     def __str__(self):
         return f"{self.title} ({'Completed' if self.is_completed else 'In Progress'})"
