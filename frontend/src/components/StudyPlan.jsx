@@ -83,15 +83,6 @@ const StudyPlan = () => {
     fetchRoadmaps(true);
   }, [location?.pathname]); // Refresh when route changes
 
-  // Add debugging useEffect to track roadmaps state changes
-  useEffect(() => {
-    console.log('=== ROADMAPS STATE CHANGED ===');
-    console.log('New roadmaps state:', roadmaps);
-    console.log('Roadmaps length:', roadmaps.length);
-    console.log('Roadmaps type:', typeof roadmaps);
-    console.log('Is array:', Array.isArray(roadmaps));
-  }, [roadmaps]);
-
   const fetchRoadmaps = async (forceRefresh = false) => {
     setLoading(true);
     try {
@@ -100,15 +91,9 @@ const StudyPlan = () => {
       // First try backend API (like Progress component does)
       try {
         const response = await axios.get('http://localhost:8000/api/roadmap/user_study_plans/');
-        console.log('=== DEBUGGING ROADMAP LOADING ===');
-        console.log('Backend response status:', response.status);
-        console.log('Backend response data type:', typeof response.data);
-        console.log('Backend response data length:', Array.isArray(response.data) ? response.data.length : 'Not an array');
         console.log('Backend study plans:', response.data);
-        
         roadmapsData = response.data || [];
         console.log('Using backend data:', roadmapsData);
-        console.log('roadmapsData length after assignment:', roadmapsData.length);
       } catch (error) {
         console.warn('Backend API failed:', error);
         roadmapsData = [];
@@ -157,12 +142,7 @@ const StudyPlan = () => {
       }
       
       console.log('Final roadmaps data:', roadmapsData);
-      console.log('Final roadmaps data length:', roadmapsData.length);
-      console.log('Setting roadmaps state with:', roadmapsData);
-      console.log('=== BEFORE setRoadmaps ===');
-      console.log('Current roadmaps state:', roadmaps);
       setRoadmaps(roadmapsData);
-      console.log('=== AFTER setRoadmaps call ===');
       
       // Calculate progress for each roadmap using both saved progress and nodeStatuses
       const progress = {};
@@ -218,10 +198,7 @@ const StudyPlan = () => {
   };
 
   const handleViewRoadmap = (roadmap) => {
-    console.log('🔍 VIEW BUTTON CLICKED - Viewing roadmap:', roadmap);
-    console.log('🔍 Roadmap keys:', Object.keys(roadmap));
-    console.log('🔍 Roadmaps data:', roadmap.roadmaps);
-    console.log('🔍 Setting selected roadmap and opening modal...');
+    console.log('Viewing roadmap:', roadmap);
     setSelectedRoadmap(roadmap);
     setShowRoadmapDetail(true);
   };
@@ -316,12 +293,6 @@ const StudyPlan = () => {
         </div>
 
         {/* Study Plans Grid */}
-        {console.log('=== RENDER PHASE ===')}
-        {console.log('RENDER: roadmaps.length =', roadmaps.length)}
-        {console.log('RENDER: roadmaps =', roadmaps)}
-        {console.log('RENDER: loading =', loading)}
-        {console.log('RENDER: typeof roadmaps =', typeof roadmaps)}
-        {console.log('RENDER: Array.isArray(roadmaps) =', Array.isArray(roadmaps))}
         {roadmaps.length === 0 ? (
           <div className="text-center py-12">
             <div className="bg-white rounded-lg shadow-lg p-8 max-w-md mx-auto">
@@ -468,19 +439,6 @@ const RoadmapDetailModal = ({ roadmap, isOpen, onClose }) => {
   React.useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      
-      // Add keyboard shortcuts
-      const handleKeyDown = (e) => {
-        if (e.key === 'Escape') {
-          onClose();
-        }
-      };
-      
-      document.addEventListener('keydown', handleKeyDown);
-      
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -489,36 +447,17 @@ const RoadmapDetailModal = ({ roadmap, isOpen, onClose }) => {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen || !roadmap) return null;
 
-  // Extract roadmap data from different possible structures
-  // Priority: roadmaps (localStorage) -> roadmap_data.roadmap (API) -> roadmap (fallback)
-  const roadmapData = roadmap.roadmaps || roadmap.roadmap_data?.roadmap || roadmap.roadmap || [];
-  
-  console.log('📊 StudyPlan modal data structure:', {
-    roadmap: roadmap,
-    roadmapKeys: Object.keys(roadmap),
-    roadmapsExists: !!roadmap.roadmaps,
-    roadmapDataLength: roadmapData.length,
-    roadmapDataSample: roadmapData.slice(0, 2),
-    roadmapsType: typeof roadmap.roadmaps,
-    roadmapsIsArray: Array.isArray(roadmap.roadmaps),
-    roadmapsLength: Array.isArray(roadmap.roadmaps) ? roadmap.roadmaps.length : 'N/A',
-    extractedData: roadmapData,
-    dataType: typeof roadmapData,
-    isArray: Array.isArray(roadmapData),
-    length: Array.isArray(roadmapData) ? roadmapData.length : 'N/A',
-    firstItemStructure: Array.isArray(roadmapData) && roadmapData.length > 0 ? Object.keys(roadmapData[0]) : 'N/A'
-  });
+  const roadmapData = roadmap.roadmaps || [];
 
   return (
-    <div className="fixed inset-0 bg-white z-[10000] overflow-hidden" style={{ zIndex: 10000 }}>
-      <div className="h-screen w-screen flex flex-col">
-        {/* Header with Back Arrow - Fixed positioning to avoid navbar overlap */}
-        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white p-4 flex items-center justify-between shadow-lg relative z-[10001]" 
-             style={{ zIndex: 10001, minHeight: '64px' }}>
+    <div className="fixed inset-0 bg-white z-[9999]" style={{ zIndex: 9999 }}>
+      <div className="h-full flex flex-col">
+        {/* Header with Back Arrow */}
+        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white p-4 flex items-center justify-between shadow-lg relative z-[10000]" style={{ zIndex: 10000 }}>
           <div className="flex items-center space-x-4">
             <button
               onClick={onClose}
@@ -544,42 +483,27 @@ const RoadmapDetailModal = ({ roadmap, isOpen, onClose }) => {
               </div>
             </div>
           </div>
-          <div className="hidden md:block text-sm text-purple-100 bg-white bg-opacity-10 px-3 py-1 rounded-full">
-            💡 Click nodes to update progress
+          <div className="text-sm text-purple-100">
+            Click nodes to update progress
           </div>
         </div>
 
-        {/* ReactFlow Roadmap Content - Full Screen minus header */}
-        <div className="flex-1 overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
+        {/* ReactFlow Roadmap Content - Full Screen */}
+        <div className="flex-1 overflow-hidden">
           {roadmapData && roadmapData.length > 0 ? (
-            (() => {
-              console.log('🎯 RENDERING ROADMAPGRAPH with:', {
-                roadmapDataLength: roadmapData.length,
-                title: roadmap.main_topic,
-                studyPlanId: roadmap.id,
-                sampleData: roadmapData.slice(0, 2)
-              });
-              return (
-                <RoadmapGraph 
-                  roadmapData={roadmapData} 
-                  title={roadmap.main_topic}
-                  studyPlanId={roadmap.id}
-                />
-              );
-            })()
+            <RoadmapGraph 
+              roadmapData={roadmapData} 
+              title={roadmap.main_topic}
+              studyPlanId={roadmap.id}
+            />
           ) : (
-            (() => {
-              console.log('❌ NO ROADMAP DATA - showing fallback message. roadmapData:', roadmapData);
-              return (
-                <div className="h-full flex items-center justify-center bg-gray-50">
-                  <div className="text-center">
-                    <div className="text-gray-400 text-6xl mb-4">📋</div>
-                    <h3 className="text-xl font-semibold text-gray-700 mb-2">No Roadmap Data Available</h3>
-                    <p className="text-gray-500">This study plan doesn't have detailed roadmap information yet.</p>
-                  </div>
-                </div>
-              );
-            })()
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-gray-400 text-6xl mb-4">📋</div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">No Roadmap Data Available</h3>
+                <p className="text-gray-500">This study plan doesn't have detailed roadmap information yet.</p>
+              </div>
+            </div>
           )}
         </div>
       </div>

@@ -9,7 +9,7 @@ import SimpleRoadmapTest from './components/SimpleRoadmapTest';
 import Signup from './components/signup';
 import Login from './components/login';
 import Profile from './components/Profile';
-import Form from './components/Form';
+import Form from './components/Form.jsx';
 import Progress from './components/Progress';
 import RoadmapPage from './components/RoadmapPage';
 import TestRoadmapPage from './components/TestRoadmapPage';

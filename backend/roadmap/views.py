@@ -16,127 +16,6 @@ User = get_user_model()  # This will get the CustomUser model
 load_dotenv("key.env")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-def call_groq_api_for_roadmap(topics_list, total_hours=None):
-    """Shared function to call GROQ API and generate roadmap"""
-    
-    # Refined prompt for DAG with multiple parents
-    prompt = f"""
-You are a study planning assistant. Given the input topics: {", ".join(topics_list)}, generate a single unified Directed Acyclic Graph (DAG) representing their complete logical dependency roadmap.
-
-Rules:
-- DAG: each topic node can have multiple parents in its "prerequisites".
-- Include missing prerequisite topics to ensure all input topics are connected.
-- Merge shared prerequisites, do NOT duplicate topic names.
-- Every node has:
-  - "id" (unique hierarchical like 1, 1.1, 2, etc.)
-  - "topic" (short name)
-  - "estimated_time_hours" (float)
-  - "prerequisites" (list of node IDs — can have >1)
-  - optional "subtopics" (children in hierarchy)
-- Output ONLY valid JSON. No explanation or markdown.
-
-Example:
-{{
-  "main_topics": {topics_list},
-  "roadmap": [
-    {{
-      "id": "1",
-      "topic": "Tree",
-      "estimated_time_hours": 4,
-      "prerequisites": [],
-      "subtopics": [
-        {{
-          "id": "1.1",
-          "topic": "DFS",
-          "estimated_time_hours": 3,
-          "prerequisites": ["1"]
-        }},
-        {{
-          "id": "1.2",
-          "topic": "BFS",
-          "estimated_time_hours": 3,
-          "prerequisites": ["1"]
-        }}
-      ]
-    }}
-  ]
-}}
-"""
-
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "model": "llama-3.1-8b-instant",
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.3,
-        "max_tokens": 3000
-    }
-
-    try:
-        res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-        data = res.json()
-
-        if "choices" not in data or not data["choices"]:
-            return {"error": "Invalid API response", "details": data}
-
-        raw_output = data["choices"][0]["message"]["content"].strip()
-
-        # Remove markdown JSON fences if present
-        if raw_output.startswith("```"):
-            raw_output = raw_output.strip("```").replace("json", "", 1).strip()
-
-        # Clean up JSON format issues
-        import re
-        
-        # Simple and reliable fix: replace all single quotes with double quotes
-        # This handles the array format issue: ['item'] becomes ["item"]
-        raw_output = raw_output.replace("'", '"')
-
-        try:
-            roadmap_data = json.loads(raw_output)
-        except json.JSONDecodeError as e:
-            return {"error": "Failed to parse JSON", "raw_output": raw_output, "json_error": str(e)}
-
-        # Deduplicate nodes by topic name (case-insensitive)
-        def dedupe_nodes(nodes, seen):
-            unique = []
-            for n in nodes:
-                key = n["topic"].strip().lower()
-                if key in seen:
-                    continue
-                seen.add(key)
-                if "subtopics" in n:
-                    n["subtopics"] = dedupe_nodes(n["subtopics"], seen)
-                unique.append(n)
-            return unique
-
-        roadmap_data["roadmap"] = dedupe_nodes(roadmap_data["roadmap"], set())
-
-        # Optional: scale estimated_time_hours based on total_hours provided
-        if total_hours:
-            try:
-                total_hours = float(total_hours)
-                current_total = sum(item.get("estimated_time_hours", 0) for item in roadmap_data["roadmap"])
-                if current_total > 0:
-                    scale = total_hours / current_total
-                    def scale_hours(items):
-                        for item in items:
-                            item["estimated_time_hours"] = round(item["estimated_time_hours"] * scale, 2)
-                            if "subtopics" in item:
-                                scale_hours(item["subtopics"])
-                        return items
-                    roadmap_data["roadmap"] = scale_hours(roadmap_data["roadmap"])
-            except (ValueError, TypeError):
-                pass  # Keep original hours if scaling fails
-
-        return roadmap_data
-
-    except Exception as e:
-        return {"error": f"GROQ API error: {str(e)}"}
-
 
 def get_default_user():
     user, created = User.objects.get_or_create(
@@ -264,11 +143,42 @@ Example:
         if raw_output.startswith("```"):
             raw_output = raw_output.strip("```").replace("json", "", 1).strip()
 
+        print(f"🔧 Raw GROQ output: {raw_output[:300]}...")
 
         try:
+            # First try to parse as valid JSON
             roadmap_data = json.loads(raw_output)
-        except json.JSONDecodeError:
-            return Response({"error": "Failed to parse JSON", "raw_output": raw_output}, status=500)
+        except json.JSONDecodeError as e:
+            print(f"⚠️ JSON parse failed, trying to fix GROQ formatting issues...")
+            
+            try:
+                # Try to fix common GROQ API formatting issues
+                import re
+                
+                # Fix mixed quotes and trailing commas
+                fixed_output = raw_output
+                
+                # Replace Python-style single quotes with JSON double quotes
+                # Handle array elements with single quotes
+                fixed_output = re.sub(r"'([^']+)'", r'"\1"', fixed_output)
+                
+                # Fix any trailing commas before closing brackets/braces
+                fixed_output = re.sub(r',(\s*[}\]])', r'\1', fixed_output)
+                
+                # Try parsing the fixed version
+                roadmap_data = json.loads(fixed_output)
+                print(f"✅ Successfully parsed after fixing formatting")
+                
+            except (json.JSONDecodeError, Exception) as e2:
+                print(f"❌ All JSON parsing attempts failed")
+                print(f"❌ Original error: {e}")
+                print(f"❌ Fixed attempt error: {e2}")
+                return Response({
+                    "error": "Failed to parse JSON after multiple attempts", 
+                    "raw_output": raw_output[:1000],  # Limit size for response
+                    "original_error": str(e),
+                    "fixed_error": str(e2)
+                }, status=500)
 
         # Deduplicate nodes by topic name (case-insensitive)
         def dedupe_nodes(nodes, seen):
@@ -343,15 +253,7 @@ Example:
 
 @api_view(['POST'])
 def create_study_plan(request):
-    print("=" * 50)
-    print("🚀 create_study_plan CALLED! (LATEST VERSION)")
-    print("=" * 50)
-    print("🔍 create_study_plan called with data:", request.data)
-    
-    # THE SOLUTION: Use direct localStorage approach
-    # Since the frontend is using localStorage and we know that works reliably,
-    # let's ensure the backend returns the data in the correct format for frontend storage
-    
+    print("Received data:", request.data)
     serializer = StudyPlanSerializer(data=request.data)
     if serializer.is_valid():
         default_user = get_default_user()
@@ -359,35 +261,30 @@ def create_study_plan(request):
 
         topic_name = serializer.data.get("main_topic")
         available_time = serializer.data.get("available_time")
-        
-        print(f"🔍 Processing: topic='{topic_name}', time={available_time}")
 
-        # Try to generate roadmap via GROQ API (direct call to shared function)
+        # Try to generate roadmap via GROQ API
         try:
-            print("🔍 Attempting to call GROQ API directly...")
+            factory = RequestFactory()
+            roadmap_request = factory.get(
+                '/roadmap/generate_roadmap/',
+                {'topics': topic_name, 'time': available_time}
+            )
+            roadmap_request.user = default_user
+            roadmap_response = generate_roadmap(roadmap_request)
             
-            topics_list = [t.strip() for t in topic_name.split(",") if t.strip()]
-            roadmap_result = call_groq_api_for_roadmap(topics_list, available_time)
+            print(f"📊 GROQ API Response Status: {roadmap_response.status_code}")
+            print(f"📊 GROQ API Response Data Keys: {list(roadmap_response.data.keys()) if hasattr(roadmap_response, 'data') else 'No data attr'}")
             
-            if "error" in roadmap_result:
-                print(f"🔍 GROQ API error: {roadmap_result['error']}, using fallback roadmap")
-                roadmap_data = []
+            if roadmap_response.status_code == 200:
+                roadmap_data = roadmap_response.data.get("roadmap", [])
+                print(f"📊 Extracted roadmap data: {len(roadmap_data)} items")
+                print(f"📊 First item structure: {roadmap_data[0] if roadmap_data else 'No items'}")
             else:
-                roadmap_data = roadmap_result.get("roadmap", [])
-                print(f"🔍 GROQ API returned {len(roadmap_data)} main topics")
-                
-                # Count subtopics
-                total_subtopics = 0
-                for item in roadmap_data:
-                    if isinstance(item, dict) and 'subtopics' in item:
-                        total_subtopics += len(item.get('subtopics', []))
-                print(f"🔍 Total subtopics found: {total_subtopics}")
-        except Exception as e:
-            print(f"🔍 Error calling GROQ API: {e}")
-            roadmap_data = []
+                print(f"❌ API failed with status {roadmap_response.status_code}, using fallback roadmap")
+                roadmap_data = []
                 
         except Exception as e:
-            print(f"🔍 Error generating roadmap: {e}")
+            print(f"❌ Error generating roadmap: {e}")
             roadmap_data = []
 
         # Create fallback roadmap if API failed
@@ -417,48 +314,42 @@ def create_study_plan(request):
                 }
             ]
 
-        # Save roadmap topics to DB (keep existing RoadmapTopic structure for compatibility)
-        def flatten_and_save_topics(items, parent_plan):
-            """Recursively flatten and save all topics and subtopics"""
+        # Save complete roadmap structure to UserRoadmap model (includes nested subtopics)
+        user_roadmap = UserRoadmap.objects.create(
+            user=default_user,
+            title=f"{topic_name} - Study Plan",
+            subject=topic_name,
+            roadmap_data={'roadmap': roadmap_data}  # Store complete nested structure
+        )
+        
+        # Also save main topics to RoadmapTopic for compatibility (flatten for basic progress tracking)
+        def flatten_roadmap_for_db(items, plan_ref):
+            """Flatten roadmap to save all items (main + subtopics) to RoadmapTopic"""
             for item in items:
                 topic = item.get("topic", "Unknown Topic")
                 hours = item.get("estimated_time_hours", 0)
+                item_id = item.get("id", "")
                 
                 RoadmapTopic.objects.create(
-                    study_plan=parent_plan,
+                    study_plan=plan_ref,
                     title=topic,
-                    description=f"Estimated time: {hours} hours"
+                    description=f"Estimated time: {hours} hours (ID: {item_id})"
                 )
                 
                 # Recursively save subtopics
-                if "subtopics" in item and isinstance(item["subtopics"], list):
-                    flatten_and_save_topics(item["subtopics"], parent_plan)
+                if 'subtopics' in item and item['subtopics']:
+                    flatten_roadmap_for_db(item['subtopics'], plan_ref)
         
-        flatten_and_save_topics(roadmap_data, plan)
+        flatten_roadmap_for_db(roadmap_data, plan)
         
-        # ALSO save complete nested structure to UserRoadmap for frontend compatibility
-        user_roadmap_data = {
-            'title': f"Study Plan: {topic_name}",
-            'description': f"Generated study plan for {topic_name} ({available_time} hours)",
-            'subject': topic_name,
-            'proficiency': 'Intermediate',  # Default
-            'weekly_hours': max(1, int(available_time) // 4) if available_time else 10,
-            'roadmap_data': {"roadmap": roadmap_data},  # Store complete nested structure
-            'user': default_user
-        }
-        
-        user_roadmap_serializer = UserRoadmapSerializer(data=user_roadmap_data)
-        if user_roadmap_serializer.is_valid():
-            user_roadmap = user_roadmap_serializer.save()
-            print(f"✅ Created UserRoadmap ID: {user_roadmap.id} with nested data")
-        else:
-            print(f"❌ UserRoadmap creation failed: {user_roadmap_serializer.errors}")
+        print(f"✅ Saved complete roadmap: {len(roadmap_data)} main topics with nested subtopics")
+        print(f"✅ UserRoadmap ID: {user_roadmap.id}")
 
-        # Prepare response with complete nested structure
+        # Prepare response
         response_data = {
             "main_topic": topic_name,
-            "roadmap": roadmap_data,  # Full nested structure for frontend
-            "roadmap_data": {"roadmap": roadmap_data}  # Alternative key for compatibility
+            "roadmap": roadmap_data,
+            "user_roadmap_id": user_roadmap.id
         }
 
         return Response({
@@ -474,8 +365,35 @@ def create_study_plan(request):
 def user_study_plans(request):
     user = get_default_user()
     plans = StudyPlan.objects.filter(user=user)
-    serializer = StudyPlanSerializer(plans, many=True)
-    return Response(serializer.data)
+    
+    # Enhance plans with complete roadmap data from UserRoadmap
+    enhanced_plans = []
+    for plan in plans:
+        plan_data = StudyPlanSerializer(plan).data
+        
+        # Try to find associated UserRoadmap with complete nested data
+        try:
+            user_roadmap = UserRoadmap.objects.filter(
+                user=user,
+                title__icontains=plan.main_topic
+            ).first()
+            
+            if user_roadmap and user_roadmap.roadmap_data:
+                # Use complete nested roadmap from UserRoadmap
+                plan_data['roadmaps'] = user_roadmap.roadmap_data.get('roadmap', [])
+                plan_data['roadmap_data'] = user_roadmap.roadmap_data
+                print(f"✅ Enhanced plan '{plan.main_topic}' with complete roadmap data ({len(plan_data['roadmaps'])} items)")
+            else:
+                # Fallback to basic roadmap from RoadmapTopic (main topics only)
+                print(f"⚠️ Using fallback roadmap for '{plan.main_topic}' (no UserRoadmap found)")
+                
+        except Exception as e:
+            print(f"❌ Error enhancing plan '{plan.main_topic}': {e}")
+            
+        enhanced_plans.append(plan_data)
+    
+    print(f"📊 Returning {len(enhanced_plans)} enhanced study plans")
+    return Response(enhanced_plans)
 
 
 @api_view(['GET'])

@@ -40,6 +40,23 @@ const Form = () => {
 
       console.log("Response received:", response.data);
       
+      // Check if this was an API-generated roadmap or fallback
+      const isApiGenerated = response.data.source === 'api' || 
+                            response.data.api_success === true ||
+                            (response.data.roadmap && !response.data.fallback_used);
+      const isFallback = response.data.source === 'fallback' || 
+                        response.data.fallback_used === true ||
+                        response.data.api_success === false;
+      
+      // Log the source information
+      console.log('🔍 Roadmap Source Detection:', {
+        isApiGenerated,
+        isFallback,
+        source: response.data.source || 'unknown',
+        api_success: response.data.api_success,
+        fallback_used: response.data.fallback_used
+      });
+      
       const plan = response.data.plan;
       const roadmap = response.data.roadmap;
 
@@ -49,7 +66,10 @@ const Form = () => {
         main_topic: plan.main_topic,
         available_time: plan.available_time,
         created_at: plan.created_at || new Date().toISOString().split('T')[0],
-        roadmaps: roadmap.roadmap || []
+        roadmaps: roadmap.roadmap || [],
+        source: isApiGenerated ? 'API Generated' : 'Fallback Template',
+        isApiGenerated,
+        isFallback
       };
       
       console.log('About to save to localStorage:', newStudyPlan);
@@ -63,8 +83,9 @@ const Form = () => {
 
       console.log('Saved study plan to localStorage:', newStudyPlan);
       
-      // Show success message
-      setSuccess(`Study plan for "${newStudyPlan.main_topic}" created successfully!`);
+      // Show success message with source information
+      const sourceInfo = isApiGenerated ? '(AI Generated)' : '(Fallback Template)';
+      setSuccess(`Study plan for "${newStudyPlan.main_topic}" created successfully! ${sourceInfo}`);
 
       // Dispatch event immediately after saving
       console.log('Dispatching studyPlansUpdated event immediately');
