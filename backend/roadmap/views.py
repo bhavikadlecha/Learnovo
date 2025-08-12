@@ -1,118 +1,87 @@
-
-import os
-import requests
 import json
-from dotenv import load_dotenv
+import re
+import requests
+import os
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Topic, UserProgress, StudyPlan, RoadmapTopic, UserRoadmap  # ✅ Add UserRoadmap
+from django.test import RequestFactory
+from .models import StudyPlan, RoadmapTopic, UserRoadmap, Topic, UserProgress
 from .serializers import StudyPlanSerializer, UserRoadmapSerializer
 from django.contrib.auth import get_user_model
-from django.test.client import RequestFactory
+from django.conf import settings
 
-User = get_user_model()  # This will get the CustomUser model
+# Get GROQ API key from settings or environment
+GROQ_API_KEY = getattr(settings, 'GROQ_API_KEY', os.environ.get('GROQ_API_KEY'))
 
-load_dotenv("key.env")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+# Get the custom user model
+User = get_user_model()
 
+# ===== Fallback function if AI fails =====
+def get_fallback_roadmap(topics):
+    return {
+        "roadmaps": [
+            {
+                "id": "1",
+                "topic": "Introduction",
+                "estimated_time_hours": 0.5,
+                "prerequisites": [],
+                "subtopics": [
+                    {
+                        "id": "1.1",
+                        "topic": f"Overview of {', '.join(topics)}",
+                        "estimated_time_hours": 0.25,
+                        "prerequisites": ["1"]
+                    }
+                ]
+            }
+        ]
+    }
 
-def get_default_user():
-    user, created = User.objects.get_or_create(
-        username="BHAVI",
-        defaults={"email": "chikukadlecha@gmail.com"}
-    )
-    if created:
-        user.set_password("chiku304")  # ✅ Hash password
-    if not user.is_superuser:
-        user.is_superuser = True
-    user.save()
-    return user
+# ===== Extract JSON from any messy model output =====
+def extract_json(text):
+    try:
+        match = re.search(r"\{[\s\S]*\}$", text.strip())
+        if match:
+            return json.loads(match.group(0))
+    except json.JSONDecodeError:
+        pass
+    return None
 
+def generate_roadmap_with_groq(topics, total_hours=None):
+    import json, re, requests
 
+    if isinstance(topics, str):
+        topics = [topics]
 
-@api_view(['GET'])
-def generate_roadmap(request):
-    topics_param = request.GET.get("topics")  # Comma-separated topics
-    total_hours = request.GET.get("time")
-    user_id = request.GET.get("user_id")
+    topic_str = ", ".join(topics)
 
-    if not topics_param:
-        return Response({"error": "No topics provided"}, status=400)
-
-    topics_list = [t.strip() for t in topics_param.split(",") if t.strip()]
-
-    # Refined prompt for DAG with multiple parents
     prompt = f"""
-You are a study planning assistant. Given the input topics: {", ".join(topics_list)}, generate a single unified Directed Acyclic Graph (DAG) representing their complete logical dependency roadmap.
-
-Rules:
-- DAG: each topic node can have multiple parents in its "prerequisites".
-- Include missing prerequisite topics to ensure all input topics are connected.
-- Merge shared prerequisites, do NOT duplicate topic names.
-- Every node has:
-  - "id" (unique hierarchical like 1, 1.1, 2, etc.)
-  - "topic" (short name)
-  - "estimated_time_hours" (float)
-  - "prerequisites" (list of node IDs — can have >1)
-  - optional "subtopics" (children in hierarchy)
-- Output ONLY valid JSON. No explanation or markdown.
-
-Example:
+You are a study planning assistant.
+Generate a hierarchical, interdependent study roadmap covering ALL of these topics: {topic_str}.
+- All topics MUST be connected logically with prerequisites and follow-ups.
+- Include any additional prerequisite topics needed to connect them into a single coherent learning path.
+- No redundancy in topics.
+- Output ONLY valid JSON, with no explanations, no markdown, no text outside the JSON object.
+- JSON format:
 {{
-  "main_topics": {topics_list},
+  "main_topics": {topics},
   "roadmap": [
     {{
       "id": "1",
-      "topic": "Tree",
+      "topic": "Main Concept",
       "estimated_time_hours": 4,
       "prerequisites": [],
       "subtopics": [
         {{
           "id": "1.1",
-          "topic": "DFS",
-          "estimated_time_hours": 3,
-          "prerequisites": ["1"]
-        }},
-        {{
-          "id": "1.2",
-          "topic": "BFS",
-          "estimated_time_hours": 3,
-          "prerequisites": ["1"]
-        }},
-        {{
-          "id": "1.3",
-          "topic": "Binary Tree",
-          "estimated_time_hours": 4,
-          "prerequisites": ["1"]
-        }},
-        {{
-          "id": "1.4",
-          "topic": "Queue",
+          "topic": "Sub Concept",
           "estimated_time_hours": 2,
-          "prerequisites": ["1"],
-          "subtopics": [
-            {{
-              "id": "1.4.1",
-              "topic": "Priority Queue",
-              "estimated_time_hours": 3,
-              "prerequisites": ["1.4"]
-            }}
-          ]
+          "prerequisites": ["1"]
         }}
       ]
-    }},
-    {{
-      "id": "2",
-      "topic": "Backtracking",
-      "estimated_time_hours": 4,
-      "prerequisites": ["1.1", "1.2"]
-    }},
-    {{
-      "id": "3",
-      "topic": "Greedy Approach",
-      "estimated_time_hours": 4,
-      "prerequisites": ["1.1", "1.2"]
     }}
   ]
 }}
@@ -126,129 +95,104 @@ Example:
     payload = {
         "model": "llama-3.1-8b-instant",
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.3,  # Low for consistency
-        "max_tokens": 3000
+        "temperature": 0.3,
+        "max_tokens": 4000  # Increased to avoid truncation
     }
 
-    try:
-        res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
+    def request_and_parse():
+        res = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=payload
+        )
+        if res.status_code != 200:
+            raise ValueError(f"Groq API error {res.status_code}: {res.text}")
+
         data = res.json()
+        raw_output = data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
-        if "choices" not in data or not data["choices"]:
-            return Response({"error": "Invalid API response", "details": data}, status=500)
+        # Remove markdown fences
+        raw_output = re.sub(r"^```[a-zA-Z]*\n?", "", raw_output.strip())
+        raw_output = re.sub(r"\n?```$", "", raw_output.strip())
 
-        raw_output = data["choices"][0]["message"]["content"].strip()
+        # Remove any explanation before JSON
+        first_brace = raw_output.find("{")
+        if first_brace != -1:
+            raw_output = raw_output[first_brace:]
 
-        # Remove markdown JSON fences if present
-        if raw_output.startswith("```"):
-            raw_output = raw_output.strip("```").replace("json", "", 1).strip()
+        return json.loads(raw_output)
 
-        print(f"🔧 Raw GROQ output: {raw_output[:300]}...")
+    try:
+        roadmap_data = request_and_parse()
+    except json.JSONDecodeError:
+        print("⚠️ JSON was incomplete — retrying once...")
+        roadmap_data = request_and_parse()
 
+    # Scale durations if total_hours provided
+    if total_hours and "roadmap" in roadmap_data:
         try:
-            # First try to parse as valid JSON
-            roadmap_data = json.loads(raw_output)
-        except json.JSONDecodeError as e:
-            print(f"⚠️ JSON parse failed, trying to fix GROQ formatting issues...")
-            
-            try:
-                # Try to fix common GROQ API formatting issues
-                import re
-                
-                # Fix mixed quotes and trailing commas
-                fixed_output = raw_output
-                
-                # Replace Python-style single quotes with JSON double quotes
-                # Handle array elements with single quotes
-                fixed_output = re.sub(r"'([^']+)'", r'"\1"', fixed_output)
-                
-                # Fix any trailing commas before closing brackets/braces
-                fixed_output = re.sub(r',(\s*[}\]])', r'\1', fixed_output)
-                
-                # Try parsing the fixed version
-                roadmap_data = json.loads(fixed_output)
-                print(f"✅ Successfully parsed after fixing formatting")
-                
-            except (json.JSONDecodeError, Exception) as e2:
-                print(f"❌ All JSON parsing attempts failed")
-                print(f"❌ Original error: {e}")
-                print(f"❌ Fixed attempt error: {e2}")
-                return Response({
-                    "error": "Failed to parse JSON after multiple attempts", 
-                    "raw_output": raw_output[:1000],  # Limit size for response
-                    "original_error": str(e),
-                    "fixed_error": str(e2)
-                }, status=500)
+            total_hours = float(total_hours)
 
-        # Deduplicate nodes by topic name (case-insensitive)
-        def dedupe_nodes(nodes, seen):
-            unique = []
-            for n in nodes:
-                key = n["topic"].strip().lower()
-                if key in seen:
-                    continue
-                seen.add(key)
-                if "subtopics" in n:
-                    n["subtopics"] = dedupe_nodes(n["subtopics"], seen)
-                unique.append(n)
-            return unique
+            def sum_hours(items):
+                return sum(
+                    item.get("estimated_time_hours", 0) +
+                    sum_hours(item.get("subtopics", []))
+                    for item in items
+                )
 
-        roadmap_data["roadmap"] = dedupe_nodes(roadmap_data["roadmap"], set())
+            actual_total = sum_hours(roadmap_data["roadmap"])
+            if actual_total > 0:
+                scale = total_hours / actual_total
 
-        # Optional: scale estimated_time_hours based on total_hours provided
-        if total_hours:
-            try:
-                total_hours = float(total_hours)
-
-                def sum_hours(items):
-                    total = 0
-                    for i in items:
-                        total += i.get("estimated_time_hours", 0)
-                        if "subtopics" in i:
-                            total += sum_hours(i["subtopics"])
-                    return total
-
-                def scale_hours(items, scale):
-                    for i in items:
-                        if "estimated_time_hours" in i:
-                            i["estimated_time_hours"] = round(i["estimated_time_hours"] * scale, 2)
-                        if "subtopics" in i:
-                            scale_hours(i["subtopics"], scale)
+                def scale_hours(items):
+                    for item in items:
+                        if "estimated_time_hours" in item:
+                            item["estimated_time_hours"] = round(item["estimated_time_hours"] * scale, 2)
+                        if "subtopics" in item:
+                            scale_hours(item["subtopics"])
                     return items
 
-                actual_total = sum_hours(roadmap_data["roadmap"])
-                if actual_total > 0:
-                    scale = total_hours / actual_total
-                    roadmap_data["roadmap"] = scale_hours(roadmap_data["roadmap"], scale)
+                roadmap_data["roadmap"] = scale_hours(roadmap_data["roadmap"])
+        except Exception as e:
+            print(f"⚠️ Failed to scale hours: {e}")
 
-            except Exception as e:
-                print("Scaling error:", e)
+    return roadmap_data
 
-        # Save to DB
-        for topic_name in topics_list:
-            Topic.objects.get_or_create(name=topic_name, defaults={"subject": "General"})
 
-        def save_nodes(nodes, parent_subject):
-            for n in nodes:
-                topic_obj, _ = Topic.objects.get_or_create(
-                    name=n["topic"],
-                    defaults={"subject": parent_subject, "estimated_time": n.get("estimated_time_hours", 0)}
-                )
-                if user_id:
-                    UserProgress.objects.get_or_create(
-                        user_id=user_id,
-                        topic=topic_obj,
-                        defaults={"time_spent": 0, "target_time": n.get("estimated_time_hours", 0), "completed": False}
-                    )
-                if "subtopics" in n:
-                    save_nodes(n["subtopics"], parent_subject)
+# ===== Main view =====
+@csrf_exempt
+def generate_roadmap(request):
+    if request.method == "POST":
+        try:
+            body = json.loads(request.body)
+            topics = body.get("topics", [])
 
-        save_nodes(roadmap_data["roadmap"], "General")
+            # Strictly try Groq first
+            roadmap_data = generate_roadmap_with_groq(topics)
 
-        return Response(roadmap_data)
+            # Only fallback if API fully fails or JSON invalid
+            if not roadmap_data:
+                roadmap_data = get_fallback_roadmap(topics)
 
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
+            return JsonResponse(roadmap_data, safe=False)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON input"}, status=400)
+
+    return JsonResponse({"error": "Only POST method allowed"}, status=405)
+
+
+# ===== Helper function to get default user =====
+def get_default_user():
+    """Get or create a default user for development purposes"""
+    try:
+        return User.objects.get(username='default_user')
+    except User.DoesNotExist:
+        return User.objects.create_user(
+            username='default_user',
+            email='default@example.com',
+            password='defaultpass123'
+        )
 
 
 @api_view(['POST'])
@@ -262,34 +206,34 @@ def create_study_plan(request):
         topic_name = serializer.data.get("main_topic")
         available_time = serializer.data.get("available_time")
 
-        # Try to generate roadmap via GROQ API
+        roadmap_data = []
+
+        # Try to generate roadmap via GROQ API directly
         try:
-            factory = RequestFactory()
-            roadmap_request = factory.get(
-                '/roadmap/generate_roadmap/',
-                {'topics': topic_name, 'time': available_time}
+            print(f"🚀 Attempting to generate roadmap for topic(s): {topic_name}")
+
+            # Call Groq API directly instead of internal request
+            roadmap_data = generate_roadmap_with_groq(
+                topics=[topic_name],
+                total_hours=available_time
             )
-            roadmap_request.user = default_user
-            roadmap_response = generate_roadmap(roadmap_request)
-            
-            print(f"📊 GROQ API Response Status: {roadmap_response.status_code}")
-            print(f"📊 GROQ API Response Data Keys: {list(roadmap_response.data.keys()) if hasattr(roadmap_response, 'data') else 'No data attr'}")
-            
-            if roadmap_response.status_code == 200:
-                roadmap_data = roadmap_response.data.get("roadmap", [])
-                print(f"📊 Extracted roadmap data: {len(roadmap_data)} items")
-                print(f"📊 First item structure: {roadmap_data[0] if roadmap_data else 'No items'}")
-            else:
-                print(f"❌ API failed with status {roadmap_response.status_code}, using fallback roadmap")
-                roadmap_data = []
-                
+
+            if not roadmap_data or "roadmap" not in roadmap_data:
+                raise ValueError("Invalid roadmap JSON from Groq")
+
+            roadmap_data = roadmap_data["roadmap"]
+
+            print(f"📊 Extracted roadmap data: {len(roadmap_data)} items")
+            if roadmap_data:
+                print(f"📊 First item structure: {roadmap_data[0]}")
+
         except Exception as e:
             print(f"❌ Error generating roadmap: {e}")
             roadmap_data = []
 
-        # Create fallback roadmap if API failed
+        # Fallback roadmap if Groq failed
         if not roadmap_data:
-            print("Creating fallback roadmap")
+            print("⚠️ Using fallback roadmap")
             hours_per_topic = max(1, int(available_time) // 4) if available_time else 5
             roadmap_data = [
                 {
@@ -298,7 +242,7 @@ def create_study_plan(request):
                     "estimated_time_hours": hours_per_topic
                 },
                 {
-                    "id": "2", 
+                    "id": "2",
                     "topic": f"Fundamentals of {topic_name}",
                     "estimated_time_hours": hours_per_topic
                 },
@@ -314,52 +258,41 @@ def create_study_plan(request):
                 }
             ]
 
-        # Save complete roadmap structure to UserRoadmap model (includes nested subtopics)
+        # Save complete roadmap
         user_roadmap = UserRoadmap.objects.create(
             user=default_user,
             title=f"{topic_name} - Study Plan",
             subject=topic_name,
-            roadmap_data={'roadmap': roadmap_data}  # Store complete nested structure
+            roadmap_data={'roadmap': roadmap_data}
         )
-        
-        # Also save main topics to RoadmapTopic for compatibility (flatten for basic progress tracking)
+
+        # Save flattened version for progress tracking
         def flatten_roadmap_for_db(items, plan_ref):
-            """Flatten roadmap to save all items (main + subtopics) to RoadmapTopic"""
             for item in items:
-                topic = item.get("topic", "Unknown Topic")
-                hours = item.get("estimated_time_hours", 0)
-                item_id = item.get("id", "")
-                
                 RoadmapTopic.objects.create(
                     study_plan=plan_ref,
-                    title=topic,
-                    description=f"Estimated time: {hours} hours (ID: {item_id})"
+                    title=item.get("topic", "Unknown Topic"),
+                    description=f"Estimated time: {item.get('estimated_time_hours', 0)} hours (ID: {item.get('id', '')})"
                 )
-                
-                # Recursively save subtopics
                 if 'subtopics' in item and item['subtopics']:
                     flatten_roadmap_for_db(item['subtopics'], plan_ref)
-        
-        flatten_roadmap_for_db(roadmap_data, plan)
-        
-        print(f"✅ Saved complete roadmap: {len(roadmap_data)} main topics with nested subtopics")
-        print(f"✅ UserRoadmap ID: {user_roadmap.id}")
 
-        # Prepare response
-        response_data = {
-            "main_topic": topic_name,
-            "roadmap": roadmap_data,
-            "user_roadmap_id": user_roadmap.id
-        }
+        flatten_roadmap_for_db(roadmap_data, plan)
+
+        print(f"✅ Saved roadmap: {len(roadmap_data)} main topics with nested subtopics")
+        print(f"✅ UserRoadmap ID: {user_roadmap.id}")
 
         return Response({
             "plan": serializer.data,
-            "roadmap": response_data
+            "roadmap": {
+                "main_topic": topic_name,
+                "roadmap": roadmap_data,
+                "user_roadmap_id": user_roadmap.id
+            }
         }, status=status.HTTP_201_CREATED)
-    else:
-        print("❌ Serializer errors:", serializer.errors)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    print("❌ Serializer errors:", serializer.errors)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
 def user_study_plans(request):
@@ -422,281 +355,89 @@ def delete_study_plan(request, pk):
 def get_roadmap_cards(request):
     """Get available roadmap topics/cards for users to choose from"""
     
-    # Predefined popular roadmap topics
-    roadmap_cards = [
+    cards = [
         {
             "id": 1,
-            "title": "Web Development",
-            "description": "Learn HTML, CSS, JavaScript, and modern frameworks like React, Vue, or Angular",
-            "category": "Programming",
+            "title": "Web Development Fundamentals",
+            "description": "Learn HTML, CSS, JavaScript basics",
             "difficulty": "Beginner",
-            "estimated_hours": 120,
-            "icon": "🌐",
-            "color": "bg-blue-500"
+            "estimated_time": "40-60 hours",
+            "topics": ["HTML", "CSS", "JavaScript"]
         },
         {
             "id": 2,
-            "title": "Data Science",
-            "description": "Master Python, statistics, machine learning, and data visualization",
-            "category": "Data",
+            "title": "Data Structures & Algorithms",
+            "description": "Master fundamental CS concepts",
             "difficulty": "Intermediate",
-            "estimated_hours": 200,
-            "icon": "📊",
-            "color": "bg-green-500"
+            "estimated_time": "80-120 hours",
+            "topics": ["Arrays", "Trees", "Graphs", "Sorting"]
         },
         {
             "id": 3,
-            "title": "Mobile App Development",
-            "description": "Build native and cross-platform mobile apps with React Native or Flutter",
-            "category": "Programming",
+            "title": "Machine Learning Basics",
+            "description": "Introduction to ML concepts and Python",
             "difficulty": "Intermediate",
-            "estimated_hours": 150,
-            "icon": "📱",
-            "color": "bg-purple-500"
-        },
-        {
-            "id": 4,
-            "title": "Machine Learning",
-            "description": "Deep dive into algorithms, neural networks, and AI model development",
-            "category": "AI/ML",
-            "difficulty": "Advanced",
-            "estimated_hours": 300,
-            "icon": "🤖",
-            "color": "bg-red-500"
-        },
-        {
-            "id": 5,
-            "title": "DevOps Engineering",
-            "description": "Learn Docker, Kubernetes, CI/CD, and cloud infrastructure management",
-            "category": "Infrastructure",
-            "difficulty": "Advanced",
-            "estimated_hours": 180,
-            "icon": "⚙️",
-            "color": "bg-yellow-500"
-        },
-        {
-            "id": 6,
-            "title": "Cybersecurity",
-            "description": "Understand security fundamentals, ethical hacking, and network protection",
-            "category": "Security",
-            "difficulty": "Intermediate",
-            "estimated_hours": 160,
-            "icon": "🔒",
-            "color": "bg-indigo-500"
-        },
-        {
-            "id": 7,
-            "title": "Cloud Computing",
-            "description": "Master AWS, Azure, or Google Cloud services and architecture",
-            "category": "Infrastructure",
-            "difficulty": "Intermediate",
-            "estimated_hours": 140,
-            "icon": "☁️",
-            "color": "bg-cyan-500"
-        },
-        {
-            "id": 8,
-            "title": "UI/UX Design",
-            "description": "Learn design principles, user research, and prototyping tools",
-            "category": "Design",
-            "difficulty": "Beginner",
-            "estimated_hours": 100,
-            "icon": "🎨",
-            "color": "bg-pink-500"
+            "estimated_time": "60-80 hours",
+            "topics": ["Python", "NumPy", "Scikit-learn", "Linear Regression"]
         }
     ]
     
-    return Response({"roadmap_cards": roadmap_cards})
+    return Response(cards)
 
 
 @api_view(['POST'])
 def create_roadmap_from_form(request):
-    """Create a roadmap from form submission data"""
+    """Create a custom roadmap from form data"""
     try:
-        # Extract form data
-        subject = request.data.get('subject')
-        topic = request.data.get('topic')
-        proficiency = request.data.get('proficiency')
-        weekly_hours = int(request.data.get('weeklyHours', 10))
-        deadline = request.data.get('deadline')
-        user_id = request.data.get('user_id')
-
-        if not topic:
-            return Response({"error": "Topic is required"}, status=400)
-
-        # Calculate total hours based on weekly hours and deadline
-        total_hours = weekly_hours * 4  # Default to 4 weeks if no deadline
-        if deadline:
-            from datetime import datetime, date
-            try:
-                deadline_date = datetime.strptime(deadline, '%Y-%m-%d').date()
-                today = date.today()
-                weeks_available = max(1, (deadline_date - today).days // 7)
-                total_hours = weekly_hours * weeks_available
-            except:
-                pass
-
-        # Generate roadmap using existing logic
-        prompt = f"""
-You are a study planning assistant. Generate a hierarchical roadmap for the topic '{topic}' suitable for {proficiency} level learners with clear logical dependencies between topics and subtopics.
-
-Consider:
-- Proficiency level: {proficiency}
-- Subject area: {subject}
-- Available weekly hours: {weekly_hours}
-- Target total hours: {total_hours}
-
-Output strictly valid JSON in this format:
-{{
-  "main_topic": "{topic}",
-  "roadmap": [
-    {{
-      "id": "1",
-      "topic": "Main Concept A",
-      "estimated_time_hours": 4,
-      "prerequisites": [],
-      "subtopics": [
-        {{
-          "id": "1.1",
-          "topic": "Sub A1",
-          "estimated_time_hours": 2,
-          "prerequisites": ["1"]
-        }},
-        {{
-          "id": "1.2",
-          "topic": "Sub A2",
-          "estimated_time_hours": 2,
-          "prerequisites": ["1.1"]
-        }}
-      ]
-    }},
-    {{
-      "id": "2",
-      "topic": "Main Concept B",
-      "estimated_time_hours": 3,
-      "prerequisites": ["1.2"]
-    }}
-  ]
-}}
-Only return JSON. No explanation.
-"""
-
-        headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-            "Content-Type": "application/json"
-        }
-
-        payload = {
-            "model": "llama-3.1-8b-instant",
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.7,
-            "max_tokens": 3000  # Increased for multi-topic responses
-        }
-
-        # Call GROQ API
-        res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-        data = res.json()
-
-        if "choices" not in data or not data["choices"]:
-            return Response({"error": "Invalid API response", "details": data}, status=500)
-
-        raw_output = data["choices"][0]["message"]["content"]
+        data = request.data
         
-        # Remove markdown code blocks if present
-        if raw_output.strip().startswith("```json"):
-            raw_output = raw_output.strip()[7:]  # Remove ```json
-        if raw_output.strip().endswith("```"):
-            raw_output = raw_output.strip()[:-3]  # Remove ```
-        raw_output = raw_output.strip()
-
-        try:
-            roadmap_data = json.loads(raw_output)
-        except json.JSONDecodeError:
-            return Response({"error": "Failed to parse JSON from API", "raw_output": raw_output}, status=500)
-
-        # Scale hours to match target
-        if total_hours:
-            def sum_hours(items):
-                total = 0
-                for item in items:
-                    total += item.get("estimated_time_hours", 0)
-                    if "subtopics" in item:
-                        total += sum_hours(item["subtopics"])
-                return total
-
-            actual_total = sum_hours(roadmap_data["roadmap"])
-            if actual_total > 0:
-                scale = total_hours / actual_total
-
-                def scale_hours(items):
-                    for item in items:
-                        if "estimated_time_hours" in item:
-                            item["estimated_time_hours"] = round(item["estimated_time_hours"] * scale, 2)
-                        if "subtopics" in item:
-                            scale_hours(item["subtopics"])
-                    return items
-
-                roadmap_data["roadmap"] = scale_hours(roadmap_data["roadmap"])
-
-        # Save to UserRoadmap model
-        user_roadmap_data = {
-            'title': topic,
-            'description': f"Generated roadmap for {topic} ({proficiency} level)",
-            'subject': subject or 'General',
-            'proficiency': proficiency,
-            'weekly_hours': weekly_hours,
-            'deadline': deadline if deadline else None,
-            'roadmap_data': roadmap_data,
-            'user_id': user_id
-        }
-
-        serializer = UserRoadmapSerializer(data=user_roadmap_data)
-        if serializer.is_valid():
-            user_roadmap = serializer.save()
-            return Response({
-                "success": True,
-                "roadmap_id": user_roadmap.id,
-                "roadmap": roadmap_data,
-                "message": f"Roadmap for '{topic}' created successfully!"
-            }, status=201)
-        else:
-            return Response({"error": "Failed to save roadmap", "details": serializer.errors}, status=400)
-
+        # Create UserRoadmap with form data
+        user_roadmap = UserRoadmap.objects.create(
+            user=get_default_user(),
+            title=data.get('title', 'Custom Roadmap'),
+            description=data.get('description', ''),
+            subject=data.get('subject', 'General'),
+            proficiency=data.get('proficiency', 'Beginner'),
+            weekly_hours=data.get('weekly_hours', 10),
+            deadline=data.get('deadline'),
+            roadmap_data=data.get('roadmap_data', {})
+        )
+        
+        serializer = UserRoadmapSerializer(user_roadmap)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
     except Exception as e:
-        return Response({"error": str(e)}, status=500)
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
 def get_user_roadmaps(request):
-    """Get all roadmaps created by users"""
-    user_id = request.GET.get('user_id')
-    
-    if user_id:
-        roadmaps = UserRoadmap.objects.filter(user_id=user_id)
-    else:
-        roadmaps = UserRoadmap.objects.all()
-    
+    """Get all user roadmaps"""
+    user = get_default_user()
+    roadmaps = UserRoadmap.objects.filter(user=user)
     serializer = UserRoadmapSerializer(roadmaps, many=True)
-    return Response({"roadmaps": serializer.data})
-
-
-@api_view(['GET'])
-def get_roadmap_detail(request, roadmap_id):
-    """Get detailed roadmap by ID"""
-    try:
-        roadmap = UserRoadmap.objects.get(id=roadmap_id)
-        serializer = UserRoadmapSerializer(roadmap)
-        return Response(serializer.data)
-    except UserRoadmap.DoesNotExist:
-        return Response({"error": "Roadmap not found"}, status=404)
+    return Response(serializer.data)
 
 
 @api_view(['DELETE'])
 def delete_user_roadmap(request, roadmap_id):
-    """Delete a user roadmap by ID"""
+    """Delete a user roadmap"""
+    user = get_default_user()
     try:
-        roadmap = UserRoadmap.objects.get(id=roadmap_id)
+        roadmap = UserRoadmap.objects.get(id=roadmap_id, user=user)
         roadmap.delete()
-        return Response({"message": "Roadmap deleted successfully"}, status=204)
+        return Response(status=status.HTTP_204_NO_CONTENT)
     except UserRoadmap.DoesNotExist:
-        return Response({"error": "Roadmap not found"}, status=404)
+        return Response({'error': 'Roadmap not found'}, status=404)
+
+
+@api_view(['GET'])
+def get_roadmap_detail(request, roadmap_id):
+    """Get detailed roadmap data"""
+    user = get_default_user()
+    try:
+        roadmap = UserRoadmap.objects.get(id=roadmap_id, user=user)
+        serializer = UserRoadmapSerializer(roadmap)
+        return Response(serializer.data)
+    except UserRoadmap.DoesNotExist:
+        return Response({'error': 'Roadmap not found'}, status=404)
