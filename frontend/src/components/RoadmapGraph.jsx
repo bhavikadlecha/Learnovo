@@ -3,11 +3,10 @@ import {
   ReactFlow,
   Controls,
   useNodesState,
-  useEdgesState
+  useEdgesState,
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
-import { updateTopicProgress, getProgressForPlan } from '../utils/studyPlanUtils';
 
 const nodeWidth = 200;
 const nodeHeight = 70;
@@ -66,25 +65,33 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState(null);
-  const [nodeStatuses, setNodeStatuses] = useState({});
+  const [nodeStatuses, setNodeStatuses] = useState(() => {
+    const stored = localStorage.getItem('nodeStatuses');
+    return stored ? JSON.parse(stored) : {};
+  });
 
   useEffect(() => {
     if (!roadmapData || !Array.isArray(roadmapData) || roadmapData.length === 0) return;
 
+    const handleNodeClick = (item) => {
+      setSelectedNode(item);
+      const current = nodeStatuses[item.id] || 'Not Started';
+      const next =
+        current === 'Not Started'
+          ? 'In Progress'
+          : current === 'In Progress'
+          ? 'Completed'
+          : 'Not Started';
+
+      const updated = { ...nodeStatuses, [item.id]: next };
+      setNodeStatuses(updated);
+      localStorage.setItem('nodeStatuses', JSON.stringify(updated));
+    };
+
     const flat = flattenRoadmap(roadmapData);
 
-    // Load saved progress if exists, else all "Not Started"
-    let initialStatuses = {};
-    if (studyPlanId) {
-      const savedProgress = getProgressForPlan(studyPlanId);
-      if (Object.keys(savedProgress).length > 0) {
-        initialStatuses = savedProgress;
-      }
-    }
-
     const topicNodes = flat.map((item) => {
-      const topicName = item.topic || item.title || `Topic ${item.id}`;
-      const status = initialStatuses[item.id] || initialStatuses[topicName] || 'Not Started';
+      const status = nodeStatuses[item.id] || 'Not Started';
       let bg = '#3b82f6';
       if (status === 'In Progress') bg = '#f59e0b';
       else if (status === 'Completed') bg = '#10b981';
@@ -93,10 +100,7 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
         id: item.id,
         data: {
           label: (
-            <div
-              onClick={() => handleNodeClick(item)}
-              style={{ cursor: 'pointer', fontWeight: 'bold' }}
-            >
+            <div onClick={() => handleNodeClick(item)} style={{ cursor: 'pointer', fontWeight: 'bold' }}>
               {item.label}
             </div>
           ),
@@ -109,11 +113,8 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
           fontSize: '14px',
           border: '1px solid #ddd',
           cursor: 'pointer',
-          transition: 'background-color 0.3s ease', // smooth color change
         },
         position: { x: 0, y: 0 },
-        estimated_time_minutes: item.estimated_time_minutes,
-        estimated_time_hours: item.estimated_time_hours,
       };
     });
 
@@ -132,38 +133,33 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
       });
     });
 
-    const layouted = getLayoutedElements(topicNodes, topicEdges, 'TB');
+    if (topicEdges.length === 0 && flat.length > 1) {
+      for (let i = 1; i < flat.length; i++) {
+        topicEdges.push({
+          id: `e-${flat[i - 1].id}-${flat[i].id}`,
+          source: flat[i - 1].id,
+          target: flat[i].id,
+          animated: true,
+          markerEnd: { type: 'arrowclosed' },
+        });
+      }
+    }
+
+    const layouted = getLayoutedElements(topicNodes, topicEdges);
     setNodes(layouted.nodes);
     setEdges(layouted.edges);
-  }, [roadmapData]);
+  }, [roadmapData, nodeStatuses]);
 
-  const handleNodeClick = (item) => {
-    setSelectedNode(item);
-    const topicName = item.topic || item.title || `Topic ${item.id}`;
-    const current = nodeStatuses[item.id] || nodeStatuses[topicName] || 'Not Started';
-    const next =
-      current === 'Not Started'
-        ? 'In Progress'
-        : current === 'In Progress'
-        ? 'Completed'
-        : 'Not Started';
-
-    const updated = {
-      ...nodeStatuses,
-      [item.id]: next,
-      [topicName]: next,
-    };
-    setNodeStatuses(updated);
-
-    if (studyPlanId) {
-      updateTopicProgress(studyPlanId, topicName, next);
-    }
+  const resetProgress = () => {
+    localStorage.removeItem('nodeStatuses');
+    setNodeStatuses({});
+    setSelectedNode(null);
   };
 
   const getStatusColor = (status) => {
     if (status === 'Completed') return '#10b981';
     if (status === 'In Progress') return '#f59e0b';
-    return '#3b82f6';
+    return '#9ca3af';
   };
 
   return (
@@ -186,11 +182,12 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
           }}
         >
           <h4 style={{ marginBottom: '10px', fontSize: '15px', color: '#f8fafc' }}>{selectedNode.label}</h4>
+          
           <div style={{ marginBottom: '8px' }}>
             <span style={{ color: '#9ca3af', fontSize: '12px' }}>Status:</span>
             <div style={{ marginTop: '4px' }}>
-              <span
-                style={{
+              <span 
+                style={{ 
                   color: getStatusColor(nodeStatuses[selectedNode.id] || 'Not Started'),
                   fontWeight: 'bold',
                   padding: '4px 8px',
@@ -204,6 +201,7 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
               </span>
             </div>
           </div>
+
           <div>
             <span style={{ color: '#9ca3af', fontSize: '12px' }}>Estimated Time:</span>
             <div style={{ color: '#f8fafc', fontWeight: 'bold', marginTop: '4px' }}>
@@ -229,6 +227,26 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
           <Controls showZoom showFitView />
         </ReactFlow>
       </div>
+
+      <button
+        onClick={resetProgress}
+        style={{
+          position: 'absolute',
+          bottom: '20px',
+          right: '20px',
+          padding: '10px 16px',
+          backgroundColor: '#ef4444',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+          fontSize: '0.875rem',
+        }}
+      >
+        Reset Progress
+      </button>
+
     </div>
   );
 }

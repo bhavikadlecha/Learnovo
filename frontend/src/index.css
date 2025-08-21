@@ -11,6 +11,74 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Brand Theme Variables */
+:root {
+  --brand-primary: #6366f1; /* indigo-500 */
+  --brand-primary-accent: #8b5cf6; /* violet-500 */
+  --brand-primary-hover: #4f46e5; /* indigo-600 */
+  --brand-accent: #f59e0b; /* amber-500 */
+  --brand-accent-hover: #d97706; /* amber-600 */
+  --brand-success: #10b981; /* emerald-500 */
+  --brand-bg-dark: #0f172a; /* slate-900 */
+  --brand-bg-darker: #0b1322;
+  --brand-surface: #1e293b; /* slate-800 */
+  --brand-surface-alt: #24324a;
+  --brand-border: rgba(255,255,255,0.08);
+  --brand-text: #ffffff;
+  --brand-text-dim: #cbd5e1; /* slate-300 */
+  --brand-gradient: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-accent) 100%);
+  --brand-gradient-soft: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.15) 100%);
+  --nav-bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #312e81 100%);
+  --focus-ring: 0 0 0 3px rgba(99,102,241,0.35);
+}
+
+/* Global theming helpers */
+.brand-gradient-text {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Navbar refinements */
+nav .nav-link {
+  color: var(--brand-text);
+}
+nav .nav-link.active {
+  background: var(--brand-gradient-soft);
+  color: #fff;
+  box-shadow: 0 0 0 1px var(--brand-border), 0 4px 12px -2px rgba(0,0,0,0.4);
+}
+nav .nav-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 8px;
+}
+
+/* Elevated surface utility */
+.surface-card {
+  background: linear-gradient(145deg, var(--brand-surface) 0%, var(--brand-surface-alt) 100%);
+  border: 1px solid var(--brand-border);
+  backdrop-filter: blur(6px);
+}
+
+/* Login button color alignment */
+.login-btn {
+  background: var(--brand-gradient);
+  box-shadow: 0 4px 16px -4px rgba(99,102,241,0.55), 0 2px 4px -1px rgba(0,0,0,0.4);
+}
+.login-btn:hover {
+  background: linear-gradient(135deg, var(--brand-primary-hover) 0%, var(--brand-primary-accent) 100%);
+  box-shadow: 0 6px 22px -4px rgba(99,102,241,0.7), 0 4px 8px -2px rgba(0,0,0,0.55);
+}
+
+/* Utility for subtle divider */
+.divider-soft {
+  background: linear-gradient(to right, transparent, var(--brand-border), transparent);
+  height: 1px;
+  border: none;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;

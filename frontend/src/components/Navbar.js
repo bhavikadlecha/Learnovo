@@ -1,17 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-function BarGraphLogo() {
-  return (
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="4" y="16" width="4" height="12" fill="#61dafb" rx="2" />
-      <rect x="10" y="10" width="4" height="18" fill="#21a1f3" rx="2" />
-      <rect x="16" y="6" width="4" height="22" fill="#1b7fc2" rx="2" />
-      <rect x="22" y="2" width="4" height="26" fill="#145a86" rx="2" />
-    </svg>
-  );
-}
+import logoImage from './logo.jpg';
 
 function UserProfileDropdown({ user, onLogout }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -157,17 +147,18 @@ function Navbar() {
 
   return (
     <nav style={{
-      padding: '1rem 2rem',
-      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-      color: '#fff',
+      padding: '0.85rem 2rem',
+      background: 'var(--nav-bg-gradient)',
+      color: 'var(--brand-text)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+      boxShadow: '0 6px 28px -8px rgba(0,0,0,0.55), 0 2px 6px -2px rgba(0,0,0,0.4)',
       position: 'sticky',
       top: 0,
       zIndex: 1000,
-      backdropFilter: 'blur(10px)',
+      backdropFilter: 'blur(14px)',
+      borderBottom: '1px solid var(--brand-border)'
     }}>
       {/* Logo Section */}
       <a
@@ -187,8 +178,13 @@ function Navbar() {
         onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
         onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
       >
-        <BarGraphLogo />
-        <span>Learnovo</span>
+        <img
+          src={logoImage}
+          alt="Learnovo logo"
+          style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '8px', boxShadow: '0 0 6px rgba(255,255,255,0.25)' }}
+          loading="lazy"
+        />
+  <span style={{ letterSpacing: '0.5px', fontWeight: 700, background: 'var(--brand-gradient)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Learnovo</span>
       </a>
 
       {/* Center Menu Items */}
@@ -255,30 +251,32 @@ function Navbar() {
 }
 
 const navLinkStyle = {
-  color: 'white',
+  color: 'var(--brand-text-dim)',
   textDecoration: 'none',
-  fontSize: '1rem',
+  fontSize: '0.95rem',
   fontWeight: 500,
-  transition: 'all 0.3s ease',
-  padding: '0.5rem 1rem',
-  borderRadius: '8px',
+  transition: 'all 0.35s cubic-bezier(.4,.08,0,1.2)',
+  padding: '0.55rem 1rem',
+  borderRadius: '10px',
   position: 'relative',
   overflow: 'hidden',
+  letterSpacing: '.3px'
 };
 
 const loginBtnStyle = {
   display: 'flex',
   alignItems: 'center',
-  padding: '0.75rem 1.5rem',
-  borderRadius: '25px',
-  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-  color: 'white',
+  padding: '0.7rem 1.4rem',
+  borderRadius: '9999px',
+  background: 'var(--brand-gradient)',
+  color: '#fff',
   fontWeight: 600,
   textDecoration: 'none',
-  transition: 'all 0.3s ease',
-  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
-  border: 'none',
+  transition: 'all 0.35s cubic-bezier(.4,.08,0,1.2)',
+  boxShadow: '0 4px 16px -4px rgba(99,102,241,0.55), 0 2px 4px -1px rgba(0,0,0,0.4)',
+  border: '1px solid rgba(255,255,255,0.1)',
   cursor: 'pointer',
+  letterSpacing: '.2px'
 };
 
 export default Navbar;

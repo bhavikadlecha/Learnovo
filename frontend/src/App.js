@@ -5,14 +5,12 @@ import Navbar from './components/Navbar';
 import Home from './components/Home';
 import About from './components/About';
 import StudyPlan from './components/StudyPlan';
-import SimpleRoadmapTest from './components/SimpleRoadmapTest';
 import Signup from './components/signup';
 import Login from './components/login';
 import Profile from './components/Profile';
 import Form from './components/Form.jsx';
 import Progress from './components/Progress';
 import RoadmapPage from './components/RoadmapPage';
-import TestRoadmapPage from './components/TestRoadmapPage';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import Help from './components/Help';
@@ -61,7 +59,7 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/form" element={<Form />} />
           <Route path="/roadmap" element={<RoadmapPage />} />
-          <Route path="/test-roadmap" element={<TestRoadmapPage />} />
+          
 
           {/* Protected Routes */}
           <Route path="/dashboard" element={
