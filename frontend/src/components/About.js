@@ -11,7 +11,7 @@ function AboutUs() {
       }}>
         <h1 style={{ fontSize: '3rem', color: '#003049', marginBottom: '1rem' }}>About Learnovo</h1>
         <p style={{ fontSize: '1.2rem', color: '#444', maxWidth: '800px', margin: '0 auto' }}>
-          At Learnovo, we believe learning should adapt to you. We design AI-powered personalized study plans that grow with your pace, goals, and performance.
+          Experience the future of education with Learnovo - an AI-powered learning platform that creates interactive visual roadmaps, tracks your progress in real-time, and adapts to your unique learning style.
         </p>
       </section>
 
@@ -23,12 +23,12 @@ function AboutUs() {
       }}>
         <h2 style={{ color: '#005f73', fontSize: '1.8rem', marginBottom: '1rem' }}>Our Mission</h2>
         <p style={{ color: '#444', fontSize: '1rem', marginBottom: '2rem' }}>
-          To transform education through personalization. We empower students to study smarter by guiding them with adaptive tools, curated resources, and data-driven feedback.
+          To revolutionize personalized education through AI technology. Learnovo transforms traditional learning into an interactive, data-driven experience with visual roadmaps, real-time progress tracking, and intelligent study plan recommendations that adapt to your goals and schedule.
         </p>
 
         <h2 style={{ color: '#005f73', fontSize: '1.8rem', marginBottom: '1rem' }}>What We Do</h2>
         <p style={{ color: '#444', fontSize: '1rem', marginBottom: '2.5rem' }}>
-          We use machine learning and performance analytics to create dynamic study plans. Whether you're preparing for a competitive exam or mastering core subjects, Learnovo guides your learning like a smart tutor.
+          Using advanced AI algorithms and the GROQ API, we generate personalized learning roadmaps that visualize your educational journey. Our platform features interactive study plans, comprehensive progress analytics, learning session tracking, and a rich resource library - all designed to make your learning experience more effective and engaging.
         </p>
 
         {/* Horizontal Cards Section */}
@@ -39,16 +39,38 @@ function AboutUs() {
           flexWrap: 'wrap'
         }}>
           <div style={cardStyle}>
-            <h3 style={cardTitle}>Personalized Plans</h3>
-            <p style={cardText}>Tailored study paths based on your strengths, goals, and availability.</p>
+            <h3 style={cardTitle}>AI-Generated Roadmaps</h3>
+            <p style={cardText}>Interactive visual learning paths created by AI, showing topic dependencies and optimal study sequences.</p>
           </div>
           <div style={cardStyle}>
-            <h3 style={cardTitle}>Progress Tracking</h3>
-            <p style={cardText}>Monitor improvements and receive adaptive recommendations in real time.</p>
+            <h3 style={cardTitle}>Real-Time Analytics</h3>
+            <p style={cardText}>Comprehensive dashboards with progress charts, learning statistics, and session tracking visualizations.</p>
           </div>
           <div style={cardStyle}>
-            <h3 style={cardTitle}>AI-Powered Insights</h3>
-            <p style={cardText}>Get smarter suggestions with intelligent clustering and filtering.</p>
+            <h3 style={cardTitle}>Smart Study Planning</h3>
+            <p style={cardText}>Personalized study plans based on your goals, available time, proficiency level, and learning preferences.</p>
+          </div>
+        </div>
+
+        {/* Additional Features Section */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: '0.5rem',
+          flexWrap: 'wrap',
+          marginTop: '1.5rem'
+        }}>
+          <div style={cardStyle}>
+            <h3 style={cardTitle}>Learning Session Tracking</h3>
+            <p style={cardText}>Monitor your study sessions with detailed time tracking, notes, and progress updates for each topic.</p>
+          </div>
+          <div style={cardStyle}>
+            <h3 style={cardTitle}>Resource Management</h3>
+            <p style={cardText}>Access curated learning materials including videos, articles, books, courses, and interactive exercises.</p>
+          </div>
+          <div style={cardStyle}>
+            <h3 style={cardTitle}>Profile & Settings</h3>
+            <p style={cardText}>Customize your learning experience with personalized profiles, preferences, and goal management.</p>
           </div>
         </div>
       </section>
@@ -60,9 +82,9 @@ function AboutUs() {
         textAlign: 'center',
         marginTop: '3rem'
       }}>
-        <h2 style={{ fontSize: '2rem', marginBottom: '1rem', color: '#003049' }}>Join the Smart Learning Revolution</h2>
+        <h2 style={{ fontSize: '2rem', marginBottom: '1rem', color: '#003049' }}>Transform Your Learning Journey Today</h2>
         <p style={{ fontSize: '1.1rem', color: '#555', maxWidth: '700px', margin: '0 auto' }}>
-          Ready to leave behind one-size-fits-all study plans? Let Learnovo guide your learning journey, one intelligent step at a time.
+          Experience intelligent learning with interactive roadmaps, comprehensive analytics, and AI-powered study plans. Join thousands of learners who are already studying smarter with Learnovo's personalized approach to education.
         </p>
       </section>
     </div>

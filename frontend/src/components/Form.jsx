@@ -49,7 +49,7 @@ const Form = () => {
                         response.data.api_success === false;
       
       // Log the source information
-      console.log('🔍 Roadmap Source Detection:', {
+      console.log('Roadmap Source Detection:', {
         isApiGenerated,
         isFallback,
         source: response.data.source || 'unknown',
@@ -85,7 +85,7 @@ const Form = () => {
       
       // Show success message with source information
       const sourceInfo = isApiGenerated ? '(AI Generated)' : '(Fallback Template)';
-      setSuccess(`Study plan for "${newStudyPlan.main_topic}" created successfully! ${sourceInfo}`);
+      setSuccess(`Study plan for "${newStudyPlan.main_topic}" created successfully! ${sourceInfo} Opening roadmap...`);
 
       // Dispatch event immediately after saving
       console.log('Dispatching studyPlansUpdated event immediately');
@@ -97,9 +97,9 @@ const Form = () => {
         } 
       }));
 
-      // Navigate to StudyPlan page to see the new card after a short delay
+      // Navigate directly to StudyPlan with auto-open parameter for the new roadmap
       setTimeout(() => {
-        navigate('/studyplan');
+        navigate(`/studyplan?openRoadmap=${plan.id}&autoOpen=true`);
       }, 1500);
       
       // Dispatch another event after navigation to ensure refresh
@@ -148,7 +148,7 @@ const Form = () => {
           
           {success && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-green-700 text-sm">
-              ✅ {success}
+              ✓ {success}
             </div>
           )}
 

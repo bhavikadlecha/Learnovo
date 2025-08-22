@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
+  const navigate = useNavigate();
   const [profileData, setProfileData] = useState({
     username: '',
     email: '',
@@ -34,10 +36,11 @@ const Profile = () => {
 
   const fetchUserStats = async () => {
     try {
+      const token = localStorage.getItem('access');
       // Get roadmaps from API
       const response = await axios.get('http://localhost:8000/api/roadmaps/', {
         headers: {
-          'Authorization': `Bearer ${user.token}`
+          'Authorization': `Token ${token}`
         }
       });
       
@@ -84,26 +87,48 @@ const Profile = () => {
     setMessage('');
     
     try {
-      await axios.put(
+      const token = localStorage.getItem('access');
+      console.log('Token from localStorage:', token);
+      console.log('Profile data to send:', profileData);
+      
+      const response = await axios.put(
         'http://localhost:8000/api/users/profile/update/',
         profileData,
         {
           headers: {
-            'Authorization': `Bearer ${user.token}`,
+            'Authorization': `Token ${token}`,
             'Content-Type': 'application/json'
           }
         }
       );
       
+      console.log('Profile update response:', response.data);
       setMessage('Profile updated successfully!');
       setIsEditing(false);
       
       // Update user context with new data
-      // You might want to update the auth context here
+      const updatedUser = { ...user, ...profileData };
+      updateUser(updatedUser);
       
     } catch (error) {
       console.error('Error updating profile:', error);
-      setMessage('Failed to update profile. Please try again.');
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      if (error.response) {
+        // Server responded with an error status
+        const errorMessage = error.response.data?.message || 
+                            error.response.data?.detail || 
+                            Object.values(error.response.data || {}).flat().join(', ') ||
+                            'Failed to update profile. Please try again.';
+        setMessage(errorMessage);
+      } else if (error.request) {
+        // Request was made but no response received
+        setMessage('Network error. Please check your connection.');
+      } else {
+        // Something else happened
+        setMessage('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -139,7 +164,7 @@ const Profile = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-4">
-            👤 My Profile
+            My Profile
           </h1>
           <p className="text-gray-600">
             Manage your account settings and view your learning statistics
@@ -157,7 +182,7 @@ const Profile = () => {
                     onClick={() => setIsEditing(true)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all"
                   >
-                    ✏️ Edit Profile
+                                        Edit Profile
                   </button>
                 ) : (
                   <div className="space-x-2">
@@ -166,13 +191,13 @@ const Profile = () => {
                       disabled={loading}
                       className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-all disabled:opacity-50"
                     >
-                      {loading ? '💾 Saving...' : '💾 Save'}
+                      {loading ? 'Saving...' : 'Save'}
                     </button>
                     <button
                       onClick={handleCancel}
                       className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all"
                     >
-                      ❌ Cancel
+                      Cancel
                     </button>
                   </div>
                 )}
@@ -253,7 +278,7 @@ const Profile = () => {
           <div className="space-y-6">
             {/* Learning Stats */}
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">📊 Learning Stats</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Learning Stats</h3>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Study Plans</span>
@@ -276,7 +301,7 @@ const Profile = () => {
 
             {/* Progress Overview */}
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">🎯 Progress</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Progress</h3>
               <div className="space-y-3">
                 <div>
                   <div className="flex justify-between text-sm font-medium text-gray-600 mb-1">
@@ -295,13 +320,44 @@ const Profile = () => {
 
             {/* Quick Actions */}
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">⚡ Quick Actions</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h3>
               <div className="space-y-3">
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-all"
+                >
+                  Go to Dashboard
+                </button>
+                <button
+                  onClick={() => navigate('/settings')}
+                  className="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition-all"
+                >
+                  Settings
+                </button>
+                <button
+                  onClick={() => navigate('/studyplan')}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition-all"
+                >
+                  My Study Plans
+                </button>
+                <button
+                  onClick={() => navigate('/progress')}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg transition-all"
+                >
+                  View Progress
+                </button>
+                <button
+                  onClick={() => navigate('/help')}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg transition-all"
+                >
+                  Get Help
+                </button>
+                <hr className="my-2" />
                 <button
                   onClick={logout}
                   className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-all"
                 >
-                  🚪 Sign Out
+                  Sign Out
                 </button>
               </div>
             </div>

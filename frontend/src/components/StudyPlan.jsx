@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { getStudyPlansFromStorage, getProgressForPlan, calculateProgressStats, deleteStudyPlanFromStorage } from '../utils/studyPlanUtils';
 import RoadmapGraph from './RoadmapGraph';
@@ -9,6 +9,7 @@ const StudyPlan = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [roadmaps, setRoadmaps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [progressData, setProgressData] = useState({});
@@ -76,12 +77,36 @@ const StudyPlan = () => {
     };
   }, []);
 
-  // Add another useEffect to refresh on route changes
+  // Add another useEffect to refresh on route changes and handle auto-open
   useEffect(() => {
     // This will run every time the component mounts/remounts
     console.log('StudyPlan component mounted/updated, refreshing data');
     fetchRoadmaps(true);
   }, [location?.pathname]); // Refresh when route changes
+
+  // Handle auto-opening roadmap from URL parameters
+  useEffect(() => {
+    const openRoadmapId = searchParams.get('openRoadmap');
+    const autoOpen = searchParams.get('autoOpen');
+    
+    if (openRoadmapId && autoOpen === 'true' && roadmaps.length > 0) {
+      console.log('Auto-opening roadmap:', openRoadmapId);
+      
+      // Find the roadmap to open
+      const roadmapToOpen = roadmaps.find(r => r.id.toString() === openRoadmapId.toString());
+      
+      if (roadmapToOpen) {
+        console.log('Found roadmap to auto-open:', roadmapToOpen);
+        setSelectedRoadmap(roadmapToOpen);
+        setShowRoadmapDetail(true);
+        
+        // Clear the URL parameters to prevent reopening on refresh
+        setSearchParams({});
+      } else {
+        console.log('Roadmap not found for auto-open:', openRoadmapId);
+      }
+    }
+  }, [roadmaps, searchParams, setSearchParams]); // Run when roadmaps or URL params change
 
   const fetchRoadmaps = async (forceRefresh = false) => {
     setLoading(true);
@@ -197,10 +222,25 @@ const StudyPlan = () => {
     navigate('/form');
   };
 
-  const handleViewRoadmap = (roadmap) => {
-    console.log('Viewing roadmap:', roadmap);
-    setSelectedRoadmap(roadmap);
-    setShowRoadmapDetail(true);
+  const handleViewRoadmap = (roadmapOrId) => {
+    console.log('Viewing roadmap:', roadmapOrId);
+    
+    // Handle both roadmap object and roadmap ID
+    let roadmap;
+    if (typeof roadmapOrId === 'object') {
+      // It's already a roadmap object
+      roadmap = roadmapOrId;
+    } else {
+      // It's an ID, find the roadmap
+      roadmap = roadmaps.find(r => r.id.toString() === roadmapOrId.toString());
+    }
+    
+    if (roadmap) {
+      setSelectedRoadmap(roadmap);
+      setShowRoadmapDetail(true);
+    } else {
+      console.error('Roadmap not found:', roadmapOrId);
+    }
   };
 
   const handleDeletePlan = async (planId, event) => {
@@ -277,7 +317,7 @@ const StudyPlan = () => {
               onClick={handleCreateNewRoadmap}
               className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
             >
-              ➕ Create New Study Plan
+              + Create New Study Plan
             </button>
             
             <button
@@ -287,7 +327,7 @@ const StudyPlan = () => {
               }}
               className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
             >
-              🔄 Refresh
+              Refresh
             </button>
           </div>
         </div>
@@ -296,7 +336,7 @@ const StudyPlan = () => {
         {roadmaps.length === 0 ? (
           <div className="text-center py-12">
             <div className="bg-white rounded-lg shadow-lg p-8 max-w-md mx-auto">
-              <div className="text-6xl mb-4">📖</div>
+              <div className="text-6xl mb-4 text-gray-400">�</div>
               <h3 className="text-xl font-semibold text-gray-800 mb-2">No Study Plans Yet</h3>
               <p className="text-gray-600 mb-4">
                 Start your learning journey by creating your first study plan!
@@ -427,6 +467,8 @@ const StudyPlan = () => {
         onClose={() => {
           setShowRoadmapDetail(false);
           setSelectedRoadmap(null);
+          // Clear URL parameters when manually closing the modal
+          setSearchParams({});
         }}
       />
     </div>

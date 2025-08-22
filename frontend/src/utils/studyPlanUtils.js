@@ -46,6 +46,8 @@ export const deleteStudyPlanFromStorage = (planId) => {
     
     // Also remove progress data for this plan
     localStorage.removeItem(`roadmap_progress_${planId}`);
+    // Remove plan-specific nodeStatuses
+    localStorage.removeItem(`nodeStatuses_${planId}`);
     
     // Dispatch a custom event to notify other components
     window.dispatchEvent(new CustomEvent('studyPlansUpdated', { 
@@ -77,7 +79,7 @@ export const initializeProgressForPlan = (planId, roadmaps) => {
       };
       
       const flatRoadmaps = flattenRoadmapForProgress(roadmaps);
-      console.log('📊 Initializing progress for flattened roadmap:', flatRoadmaps);
+      console.log('Initializing progress for flattened roadmap:', flatRoadmaps);
       
       flatRoadmaps.forEach((item, index) => {
         const topicName = item.topic || item.title || `Topic ${index + 1}`;
@@ -85,7 +87,7 @@ export const initializeProgressForPlan = (planId, roadmaps) => {
       });
       
       localStorage.setItem(`roadmap_progress_${planId}`, JSON.stringify(initialProgress));
-      console.log('📊 Initialized progress data:', initialProgress);
+      console.log('Initialized progress data:', initialProgress);
       return initialProgress;
     }
     return {};

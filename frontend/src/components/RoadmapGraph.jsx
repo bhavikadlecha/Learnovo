@@ -65,28 +65,99 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState(null);
+  const [selectedNodeId, setSelectedNodeId] = useState(null); // Track selected node ID separately
   const [nodeStatuses, setNodeStatuses] = useState(() => {
-    const stored = localStorage.getItem('nodeStatuses');
+    // Use plan-specific storage if studyPlanId is provided, otherwise use global
+    const storageKey = studyPlanId ? `nodeStatuses_${studyPlanId}` : 'nodeStatuses';
+    const stored = localStorage.getItem(storageKey);
     return stored ? JSON.parse(stored) : {};
   });
 
+  const handleNodeClick = (item) => {
+    // Don't set selectedNode here since it's already set in onNodeClick
+    const current = nodeStatuses[item.id] || 'Not Started';
+    const next =
+      current === 'Not Started'
+        ? 'In Progress'
+        : current === 'In Progress'
+        ? 'Completed'
+        : 'Not Started';
+
+    const updated = { ...nodeStatuses, [item.id]: next };
+    setNodeStatuses(updated);
+    
+    // Use plan-specific storage if studyPlanId is provided, otherwise use global
+    const storageKey = studyPlanId ? `nodeStatuses_${studyPlanId}` : 'nodeStatuses';
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+    
+    // Dispatch events to notify other components about the progress update
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('progressUpdated', { 
+        detail: { nodeId: item.id, status: next, allStatuses: updated, studyPlanId } 
+      }));
+      window.dispatchEvent(new CustomEvent('studyPlansUpdated'));
+    }, 0);
+  };
+
+  const onNodeClick = (event, node) => {
+    console.log('Node clicked:', node);
+    if (roadmapData && Array.isArray(roadmapData)) {
+      const flat = flattenRoadmap(roadmapData);
+      const fullItem = flat.find(item => item.id === node.id);
+      if (fullItem) {
+        // If clicking the same node that's already selected, update its status
+        if (selectedNodeId === node.id) {
+          const current = nodeStatuses[fullItem.id] || 'Not Started';
+          const next =
+            current === 'Not Started'
+              ? 'In Progress'
+              : current === 'In Progress'
+              ? 'Completed'
+              : 'Not Started';
+
+          const updated = { ...nodeStatuses, [fullItem.id]: next };
+          setNodeStatuses(updated);
+          
+          // Save to localStorage
+          const storageKey = studyPlanId ? `nodeStatuses_${studyPlanId}` : 'nodeStatuses';
+          localStorage.setItem(storageKey, JSON.stringify(updated));
+          
+          // Dispatch events
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('progressUpdated', { 
+              detail: { nodeId: fullItem.id, status: next, allStatuses: updated, studyPlanId } 
+            }));
+            window.dispatchEvent(new CustomEvent('studyPlansUpdated'));
+          }, 0);
+        } else {
+          // If clicking a different node, just select it
+          console.log('Setting selectedNode to:', fullItem);
+          setSelectedNode(fullItem);
+          setSelectedNodeId(node.id);
+        }
+      }
+    }
+  };
+
+
+  // Update selectedNode when roadmapData changes to ensure it has the latest data
+  useEffect(() => {
+    if (selectedNodeId && roadmapData && Array.isArray(roadmapData)) {
+      const flat = flattenRoadmap(roadmapData);
+      const fullItem = flat.find(item => item.id === selectedNodeId);
+      if (fullItem) {
+        setSelectedNode(fullItem);
+      }
+    }
+  }, [roadmapData, selectedNodeId]);
+
+  // Debug: Log selectedNode changes
+  useEffect(() => {
+    console.log('selectedNode state changed:', selectedNode);
+  }, [selectedNode]);
+
   useEffect(() => {
     if (!roadmapData || !Array.isArray(roadmapData) || roadmapData.length === 0) return;
-
-    const handleNodeClick = (item) => {
-      setSelectedNode(item);
-      const current = nodeStatuses[item.id] || 'Not Started';
-      const next =
-        current === 'Not Started'
-          ? 'In Progress'
-          : current === 'In Progress'
-          ? 'Completed'
-          : 'Not Started';
-
-      const updated = { ...nodeStatuses, [item.id]: next };
-      setNodeStatuses(updated);
-      localStorage.setItem('nodeStatuses', JSON.stringify(updated));
-    };
 
     const flat = flattenRoadmap(roadmapData);
 
@@ -100,10 +171,11 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
         id: item.id,
         data: {
           label: (
-            <div onClick={() => handleNodeClick(item)} style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+            <div style={{ cursor: 'pointer', fontWeight: 'bold' }}>
               {item.label}
             </div>
           ),
+          fullItem: item,
         },
         style: {
           background: bg,
@@ -148,12 +220,44 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
     const layouted = getLayoutedElements(topicNodes, topicEdges);
     setNodes(layouted.nodes);
     setEdges(layouted.edges);
-  }, [roadmapData, nodeStatuses]);
+  }, [roadmapData]); // Only depend on roadmapData, not nodeStatuses
+
+  // Update node colors when status changes, without affecting selectedNode
+  useEffect(() => {
+    setNodes(prevNodes => 
+      prevNodes.map(node => {
+        const status = nodeStatuses[node.id] || 'Not Started';
+        let bg = '#3b82f6';
+        if (status === 'In Progress') bg = '#f59e0b';
+        else if (status === 'Completed') bg = '#10b981';
+
+        return {
+          ...node,
+          style: {
+            ...node.style,
+            background: bg,
+          }
+        };
+      })
+    );
+  }, [nodeStatuses]);
+
+
+  // Note: Removed click outside handler to keep info panel always visible
 
   const resetProgress = () => {
-    localStorage.removeItem('nodeStatuses');
+    // Use plan-specific storage if studyPlanId is provided, otherwise use global
+    const storageKey = studyPlanId ? `nodeStatuses_${studyPlanId}` : 'nodeStatuses';
+    localStorage.removeItem(storageKey);
     setNodeStatuses({});
     setSelectedNode(null);
+    setSelectedNodeId(null);
+    
+    // Dispatch events to notify other components about the progress reset
+    window.dispatchEvent(new CustomEvent('progressUpdated', { 
+      detail: { reset: true, allStatuses: {}, studyPlanId } 
+    }));
+    window.dispatchEvent(new CustomEvent('studyPlansUpdated'));
   };
 
   const getStatusColor = (status) => {
@@ -165,8 +269,10 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
   return (
     <div style={{ display: 'flex', width: '100%', height: '88vh', backgroundColor: '#000', position: 'relative' }}>
       
+      {/* Info panel - only visible when node is selected */}
       {selectedNode && (
         <div
+          data-info-panel
           style={{
             position: 'absolute',
             bottom: '20px',
@@ -181,8 +287,14 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
             zIndex: 1000,
           }}
         >
-          <h4 style={{ marginBottom: '10px', fontSize: '15px', color: '#f8fafc' }}>{selectedNode.label}</h4>
-          
+          {/* Topic Name */}
+          <div style={{ marginBottom: '10px' }}>
+            <h4 style={{ margin: 0, fontSize: '14px', color: '#f8fafc', fontWeight: 'bold' }}>
+              {selectedNode.label}
+            </h4>
+          </div>
+
+          {/* Status Section */}
           <div style={{ marginBottom: '8px' }}>
             <span style={{ color: '#9ca3af', fontSize: '12px' }}>Status:</span>
             <div style={{ marginTop: '4px' }}>
@@ -202,6 +314,7 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
             </div>
           </div>
 
+          {/* Estimated Time Section */}
           <div>
             <span style={{ color: '#9ca3af', fontSize: '12px' }}>Estimated Time:</span>
             <div style={{ color: '#f8fafc', fontWeight: 'bold', marginTop: '4px' }}>
@@ -221,6 +334,7 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onNodeClick={onNodeClick}
           fitView
           style={{ backgroundColor: '#000' }}
         >
@@ -229,6 +343,7 @@ function RoadmapGraph({ roadmapData, title, studyPlanId }) {
       </div>
 
       <button
+        data-reset-button
         onClick={resetProgress}
         style={{
           position: 'absolute',

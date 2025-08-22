@@ -144,28 +144,28 @@ const Dashboard = () => {
     {
       title: 'Create New Study Plan',
       description: 'Start your learning journey',
-      icon: '➕',
+      icon: '+',
       color: 'bg-purple-500',
       action: () => navigate('/form')
     },
     {
       title: 'View All Study Plans',
       description: 'See your complete collection',
-      icon: '📚',
+      icon: 'SP',
       color: 'bg-blue-500',
       action: () => navigate('/studyplan')
     },
     {
       title: 'Track Progress',
       description: 'Monitor your learning',
-      icon: '📊',
+      icon: 'P',
       color: 'bg-green-500',
       action: () => navigate('/progress')
     },
     {
       title: 'Profile Settings',
       description: 'Manage your account',
-      icon: '⚙️',
+      icon: 'S',
       color: 'bg-gray-500',
       action: () => navigate('/profile')
     }
@@ -190,7 +190,7 @@ const Dashboard = () => {
         {/* Welcome Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            {getGreeting()}, {user?.first_name || user?.username || 'Learner'}! 👋
+            {getGreeting()}, {user?.first_name || user?.username || 'Learner'}!
           </h1>
           <p className="text-gray-600 text-lg">
             Ready to continue your learning journey today?
@@ -233,7 +233,7 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">🚀 Quick Actions</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {quickActions.map((action, index) => (
               <div
@@ -254,7 +254,7 @@ const Dashboard = () => {
         {/* Recent Study Plans */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">📚 Your Customized Study Plans</h2>
+            <h2 className="text-2xl font-bold text-gray-800">Your Customized Study Plans</h2>
             <button
               onClick={() => navigate('/studyplan')}
               className="text-purple-600 hover:text-purple-800 font-medium"
@@ -265,7 +265,7 @@ const Dashboard = () => {
           
           {roadmaps.length === 0 ? (
             <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-              <div className="text-6xl mb-4">📖</div>
+              <div className="text-6xl mb-4 text-gray-400">�</div>
               <h3 className="text-xl font-semibold text-gray-800 mb-2">No Study Plans Yet</h3>
               <p className="text-gray-600 mb-4">
                 Create your first personalized study plan to get started!
@@ -342,10 +342,10 @@ const Dashboard = () => {
                             : 'bg-gray-100 text-gray-800'
                         }`}>
                           {progress.percentage === 100
-                            ? '✅ Complete'
+                            ? '✓ Complete'
                             : progress.percentage > 0
-                            ? '🔄 In Progress'
-                            : '📝 New'}
+                            ? 'In Progress'
+                            : 'New'}
                         </span>
                         <span className="text-xs text-gray-500">
                           {progress.completed}/{progress.total} tasks
@@ -361,11 +361,11 @@ const Dashboard = () => {
 
         {/* Today's Focus */}
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">🎯 Today's Focus</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Today's Focus</h2>
           <div className="space-y-4">
             {roadmaps.length > 0 ? (
               <div className="text-center py-8">
-                <div className="text-4xl mb-2">🌟</div>
+                <div className="text-4xl mb-2 text-gray-400">⭐</div>
                 <p className="text-gray-600">
                   Continue working on your study plans and make progress every day!
                 </p>
@@ -378,7 +378,7 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="text-center py-8">
-                <div className="text-4xl mb-2">🚀</div>
+                <div className="text-4xl mb-2 text-gray-400">→</div>
                 <p className="text-gray-600 mb-4">
                   Ready to start your learning journey? Create your first study plan!
                 </p>

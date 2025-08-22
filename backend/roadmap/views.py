@@ -125,7 +125,7 @@ Generate a hierarchical, interdependent study roadmap covering ALL of these topi
     try:
         roadmap_data = request_and_parse()
     except json.JSONDecodeError:
-        print("⚠️ JSON was incomplete — retrying once...")
+        print("Warning: JSON was incomplete — retrying once...")
         roadmap_data = request_and_parse()
 
     # Scale durations if total_hours provided
@@ -154,7 +154,7 @@ Generate a hierarchical, interdependent study roadmap covering ALL of these topi
 
                 roadmap_data["roadmap"] = scale_hours(roadmap_data["roadmap"])
         except Exception as e:
-            print(f"⚠️ Failed to scale hours: {e}")
+            print(f"Warning: Failed to scale hours: {e}")
 
     return roadmap_data
 
@@ -210,7 +210,7 @@ def create_study_plan(request):
 
         # Try to generate roadmap via GROQ API directly
         try:
-            print(f"🚀 Attempting to generate roadmap for topic(s): {topic_name}")
+            print(f"Attempting to generate roadmap for topic(s): {topic_name}")
 
             # Call Groq API directly instead of internal request
             roadmap_data = generate_roadmap_with_groq(
@@ -223,17 +223,17 @@ def create_study_plan(request):
 
             roadmap_data = roadmap_data["roadmap"]
 
-            print(f"📊 Extracted roadmap data: {len(roadmap_data)} items")
+            print(f"Extracted roadmap data: {len(roadmap_data)} items")
             if roadmap_data:
-                print(f"📊 First item structure: {roadmap_data[0]}")
+                print(f"First item structure: {roadmap_data[0]}")
 
         except Exception as e:
-            print(f"❌ Error generating roadmap: {e}")
+            print(f"Error generating roadmap: {e}")
             roadmap_data = []
 
         # Fallback roadmap if Groq failed
         if not roadmap_data:
-            print("⚠️ Using fallback roadmap")
+            print("Warning: Using fallback roadmap")
             hours_per_topic = max(1, int(available_time) // 4) if available_time else 5
             roadmap_data = [
                 {
@@ -279,8 +279,8 @@ def create_study_plan(request):
 
         flatten_roadmap_for_db(roadmap_data, plan)
 
-        print(f"✅ Saved roadmap: {len(roadmap_data)} main topics with nested subtopics")
-        print(f"✅ UserRoadmap ID: {user_roadmap.id}")
+        print(f"Saved roadmap: {len(roadmap_data)} main topics with nested subtopics")
+        print(f"UserRoadmap ID: {user_roadmap.id}")
 
         return Response({
             "plan": serializer.data,
@@ -291,7 +291,7 @@ def create_study_plan(request):
             }
         }, status=status.HTTP_201_CREATED)
 
-    print("❌ Serializer errors:", serializer.errors)
+    print("Error: Serializer errors:", serializer.errors)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
@@ -315,17 +315,17 @@ def user_study_plans(request):
                 # Use complete nested roadmap from UserRoadmap
                 plan_data['roadmaps'] = user_roadmap.roadmap_data.get('roadmap', [])
                 plan_data['roadmap_data'] = user_roadmap.roadmap_data
-                print(f"✅ Enhanced plan '{plan.main_topic}' with complete roadmap data ({len(plan_data['roadmaps'])} items)")
+                print(f"Enhanced plan '{plan.main_topic}' with complete roadmap data ({len(plan_data['roadmaps'])} items)")
             else:
                 # Fallback to basic roadmap from RoadmapTopic (main topics only)
-                print(f"⚠️ Using fallback roadmap for '{plan.main_topic}' (no UserRoadmap found)")
+                print(f"Warning: Using fallback roadmap for '{plan.main_topic}' (no UserRoadmap found)")
                 
         except Exception as e:
-            print(f"❌ Error enhancing plan '{plan.main_topic}': {e}")
+            print(f"Error enhancing plan '{plan.main_topic}': {e}")
             
         enhanced_plans.append(plan_data)
     
-    print(f"📊 Returning {len(enhanced_plans)} enhanced study plans")
+    print(f"Returning {len(enhanced_plans)} enhanced study plans")
     return Response(enhanced_plans)
 
 

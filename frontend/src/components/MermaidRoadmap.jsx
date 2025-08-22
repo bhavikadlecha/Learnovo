@@ -47,7 +47,7 @@ flowchart TD
       const nodeId = `TOPIC${index}`;
       const topic = item.title || item.topic || `Topic ${index + 1}`;
       const hours = parseFloat(item.estimated_time_hours || item.time_hours || 0);
-      const emoji = index === 0 ? '📐' : index === 1 ? '🐍' : index === 2 ? '📊' : index < roadmapData.length * 0.5 ? '🤖' : index < roadmapData.length * 0.8 ? '🧠' : '🏗️';
+      const emoji = index === 0 ? '[1]' : index === 1 ? '[2]' : index === 2 ? '[3]' : index < roadmapData.length * 0.5 ? '[A]' : index < roadmapData.length * 0.8 ? '[B]' : '[C]';
       
       diagram += `
     ${nodeId}[${emoji} ${topic}<br/>${hours} hours]`;
@@ -207,7 +207,7 @@ flowchart TD
 
         {/* Legend */}
         <div className="bg-gray-50 p-6 border-t border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">📖 Legend</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Legend</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 bg-blue-600 rounded"></div>
