@@ -21,10 +21,11 @@ class StudyPlan(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     main_topic = models.CharField(max_length=255)
     available_time = models.IntegerField()
+    purpose_of_study = models.CharField(max_length=200, blank=True)  # Allow any text, increased length
     created_at = models.DateField(auto_now_add=True)
 
     def __str__(self):
-        return self.main_topic
+        return f"{self.main_topic} ({self.purpose_of_study})"
 
 class RoadmapTopic(models.Model):
     study_plan = models.ForeignKey(StudyPlan, on_delete=models.CASCADE, related_name='roadmaps')

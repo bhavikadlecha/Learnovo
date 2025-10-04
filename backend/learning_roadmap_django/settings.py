@@ -34,7 +34,7 @@ INSTALLED_APPS = [
     'corsheaders',  # Added for CORS
     
     # Local apps
-    'users',
+    'users.apps.UsersConfig',
     'roadmap',
     'learning',
 ]

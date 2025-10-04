@@ -43,41 +43,50 @@ const Dashboard = () => {
     try {
       let roadmapsData = [];
       
-      // First try backend API
-      try {
-        const response = await axios.get('http://localhost:8000/api/roadmap/user_study_plans/');
-        roadmapsData = response.data || [];
-      } catch (error) {
-        console.warn('Backend API failed, using localStorage:', error);
-        roadmapsData = [];
-      }
-      
-      // Also get localStorage data and merge/prioritize it
-      const localPlans = getStudyPlansFromStorage();
-      if (localPlans && localPlans.length > 0) {
-        const localData = localPlans.map((plan, index) => ({
-          id: plan.id || `local_${index + 1}`,
-          main_topic: plan.main_topic || plan.topic || 'Unknown Topic',
-          available_time: plan.available_time || plan.studyHours || 0,
-          created_at: plan.created_at || new Date().toISOString().split('T')[0],
-          roadmaps: plan.roadmaps || []
-        }));
-        
-        // Merge backend and localStorage data
-        const mergedData = [...roadmapsData];
-        localData.forEach(localPlan => {
-          const existsInBackend = mergedData.find(backendPlan => backendPlan.id === localPlan.id);
-          if (!existsInBackend) {
-            mergedData.push(localPlan);
+      // If user is authenticated, prioritize backend data
+      if (user && localStorage.getItem('access')) {
+        try {
+          const token = localStorage.getItem('access');
+          const response = await axios.get('http://localhost:8000/api/roadmap/user_study_plans/', {
+            headers: {
+              'Authorization': `Token ${token}`
+            }
+          });
+          roadmapsData = response.data || [];
+          console.log('Fetched roadmaps from backend:', roadmapsData);
+        } catch (error) {
+          console.warn('Backend API failed for authenticated user:', error);
+          
+          // If backend fails but user is authenticated, try localStorage as fallback
+          const localPlans = getStudyPlansFromStorage(user?.id || user?.email);
+          if (localPlans && localPlans.length > 0) {
+            roadmapsData = localPlans.map((plan, index) => ({
+              id: plan.id || `local_${index + 1}`,
+              main_topic: plan.main_topic || plan.topic || 'Unknown Topic',
+              available_time: plan.available_time || plan.studyHours || 0,
+              created_at: plan.created_at || new Date().toISOString().split('T')[0],
+              roadmaps: plan.roadmaps || []
+            }));
           }
-        });
-        roadmapsData = mergedData;
+        }
+      } else {
+        // For unauthenticated users, check if there's any localStorage data (fallback)
+        const localPlans = getStudyPlansFromStorage();
+        if (localPlans && localPlans.length > 0) {
+          roadmapsData = localPlans.map((plan, index) => ({
+            id: plan.id || `local_${index + 1}`,
+            main_topic: plan.main_topic || plan.topic || 'Unknown Topic',
+            available_time: plan.available_time || plan.studyHours || 0,
+            created_at: plan.created_at || new Date().toISOString().split('T')[0],
+            roadmaps: plan.roadmaps || []
+          }));
+        }
       }
       
       setRoadmaps(roadmapsData.slice(0, 6)); // Show only first 6 for dashboard
       
-      // Calculate progress stats using nodeStatuses for real-time accuracy
-      const nodeStatuses = JSON.parse(localStorage.getItem('nodeStatuses')) || {};
+      // Calculate progress stats using user-specific progress data
+      const userId = user?.id || user?.email;
       let totalTasks = 0;
       let completedTasks = 0;
       let inProgressTasks = 0;
@@ -85,26 +94,12 @@ const Dashboard = () => {
 
       roadmapsData.forEach(roadmap => {
         try {
-          // Get saved progress
-          const savedProgress = getProgressForPlan(roadmap.id);
-          
-          // Merge with nodeStatuses for real-time updates
-          let mergedProgress = { ...savedProgress };
+          // Get saved progress for this specific user
+          const savedProgress = getProgressForPlan(roadmap.id, userId);
           
           if (roadmap.roadmaps && roadmap.roadmaps.length > 0) {
-            roadmap.roadmaps.forEach((item, index) => {
-              const topicName = item.topic || item.title || `Topic ${index + 1}`;
-              const nodeId = item.id?.toString() || topicName || `topic-${index}`;
-              
-              // Use nodeStatus if available
-              if (nodeStatuses[nodeId]) {
-                mergedProgress[topicName] = nodeStatuses[nodeId];
-              } else if (!mergedProgress[topicName]) {
-                mergedProgress[topicName] = 'Not Started';
-              }
-            });
-            
-            const stats = calculateProgressStats(mergedProgress);
+            // Calculate stats directly from saved progress
+            const stats = calculateProgressStats(savedProgress);
             totalTasks += stats.total;
             completedTasks += stats.completed;
             inProgressTasks += stats.inProgress;
@@ -280,18 +275,17 @@ const Dashboard = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {roadmaps.map((roadmap) => {
-                // Calculate progress for this roadmap
+                // Calculate progress for this roadmap using user-specific data
                 let progress = { completed: 0, total: 0, percentage: 0 };
                 try {
-                  const savedProgress = localStorage.getItem(`roadmap_progress_${roadmap.id}`);
-                  if (savedProgress) {
-                    const parsedProgress = JSON.parse(savedProgress);
-                    const totalTasks = Object.keys(parsedProgress).length;
-                    const completedTasks = Object.values(parsedProgress).filter(status => status === 'completed').length;
+                  const userId = user?.id || user?.email;
+                  const savedProgress = getProgressForPlan(roadmap.id, userId);
+                  if (savedProgress && Object.keys(savedProgress).length > 0) {
+                    const stats = calculateProgressStats(savedProgress);
                     progress = {
-                      completed: completedTasks,
-                      total: totalTasks,
-                      percentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+                      completed: stats.completed,
+                      total: stats.total,
+                      percentage: stats.percentage
                     };
                   }
                 } catch (error) {

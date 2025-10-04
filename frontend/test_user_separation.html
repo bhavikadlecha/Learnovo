@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Separation Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .user-section { 
+            border: 1px solid #ccc; 
+            margin: 10px 0; 
+            padding: 15px; 
+            border-radius: 5px; 
+        }
+        .user1 { background-color: #e3f2fd; }
+        .user2 { background-color: #f3e5f5; }
+        button { 
+            margin: 5px; 
+            padding: 8px 15px; 
+            background: #2196f3; 
+            color: white; 
+            border: none; 
+            border-radius: 3px; 
+            cursor: pointer; 
+        }
+        button:hover { background: #1976d2; }
+        .results { 
+            margin: 10px 0; 
+            padding: 10px; 
+            background: #f5f5f5; 
+            border-radius: 3px; 
+            max-height: 200px; 
+            overflow-y: auto; 
+        }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>🧪 User Data Separation Test</h1>
+    <p>This page tests that different users see different data from the API.</p>
+
+    <div class="user-section user1">
+        <h3>👤 User 1 (testuser1@example.com)</h3>
+        <button onclick="loginUser1()">Login User 1</button>
+        <button onclick="fetchUser1Data()">Fetch My Data</button>
+        <button onclick="createUser1Plan()">Create Study Plan</button>
+        <div id="user1-results" class="results"></div>
+    </div>
+
+    <div class="user-section user2">
+        <h3>👤 User 2 (testuser2@example.com)</h3>
+        <button onclick="loginUser2()">Login User 2</button>
+        <button onclick="fetchUser2Data()">Fetch My Data</button>
+        <button onclick="createUser2Plan()">Create Study Plan</button>
+        <div id="user2-results" class="results"></div>
+    </div>
+
+    <div class="user-section">
+        <h3>🔓 Unauthenticated Test</h3>
+        <button onclick="fetchUnauthenticatedData()">Try to Fetch Data (No Auth)</button>
+        <div id="unauth-results" class="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+        
+        // Test user credentials (from our test script)
+        const USER1_TOKEN = '4740954694775858601759c2934d5867fd371257';
+        const USER2_TOKEN = 'b3ca6b60c0fd4269f2447096f83ebbbc784119ea';
+        
+        let currentUser1Token = null;
+        let currentUser2Token = null;
+
+        // Helper function to make API calls
+        async function apiCall(endpoint, token = null, method = 'GET', data = null) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Token ${token}`;
+            
+            const config = { method, headers };
+            if (data) config.body = JSON.stringify(data);
+            
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, config);
+                const result = await response.json();
+                return { status: response.status, data: result };
+            } catch (error) {
+                return { status: 'error', data: { error: error.message } };
+            }
+        }
+
+        // User 1 functions
+        async function loginUser1() {
+            const result = await apiCall('/users/login/', null, 'POST', {
+                identifier: 'testuser1@example.com',
+                password: 'testpass123'
+            });
+            
+            const resultsDiv = document.getElementById('user1-results');
+            if (result.status === 200) {
+                currentUser1Token = result.data.token;
+                resultsDiv.innerHTML = `<div class="success">✅ User 1 logged in successfully!</div>`;
+            } else {
+                resultsDiv.innerHTML = `<div class="error">❌ Login failed: ${JSON.stringify(result.data)}</div>`;
+            }
+        }
+
+        async function fetchUser1Data() {
+            const token = currentUser1Token || USER1_TOKEN;
+            const result = await apiCall('/roadmap/user_study_plans/', token);
+            
+            const resultsDiv = document.getElementById('user1-results');
+            if (result.status === 200) {
+                resultsDiv.innerHTML = `
+                    <div class="success">✅ User 1 Data Retrieved:</div>
+                    <div>Study Plans: ${result.data.length}</div>
+                    <pre>${JSON.stringify(result.data, null, 2)}</pre>
+                `;
+            } else {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${JSON.stringify(result.data)}</div>`;
+            }
+        }
+
+        async function createUser1Plan() {
+            const token = currentUser1Token || USER1_TOKEN;
+            const result = await apiCall('/roadmap/studyplan/create/', token, 'POST', {
+                main_topic: 'React Development for User 1',
+                available_time: 25
+            });
+            
+            const resultsDiv = document.getElementById('user1-results');
+            if (result.status === 201) {
+                resultsDiv.innerHTML = `<div class="success">✅ User 1 created study plan successfully!</div>`;
+                setTimeout(fetchUser1Data, 1000); // Refresh data
+            } else {
+                resultsDiv.innerHTML = `<div class="error">❌ Error creating plan: ${JSON.stringify(result.data)}</div>`;
+            }
+        }
+
+        // User 2 functions
+        async function loginUser2() {
+            const result = await apiCall('/users/login/', null, 'POST', {
+                identifier: 'testuser2@example.com',
+                password: 'testpass123'
+            });
+            
+            const resultsDiv = document.getElementById('user2-results');
+            if (result.status === 200) {
+                currentUser2Token = result.data.token;
+                resultsDiv.innerHTML = `<div class="success">✅ User 2 logged in successfully!</div>`;
+            } else {
+                resultsDiv.innerHTML = `<div class="error">❌ Login failed: ${JSON.stringify(result.data)}</div>`;
+            }
+        }
+
+        async function fetchUser2Data() {
+            const token = currentUser2Token || USER2_TOKEN;
+            const result = await apiCall('/roadmap/user_study_plans/', token);
+            
+            const resultsDiv = document.getElementById('user2-results');
+            if (result.status === 200) {
+                resultsDiv.innerHTML = `
+                    <div class="success">✅ User 2 Data Retrieved:</div>
+                    <div>Study Plans: ${result.data.length}</div>
+                    <pre>${JSON.stringify(result.data, null, 2)}</pre>
+                `;
+            } else {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${JSON.stringify(result.data)}</div>`;
+            }
+        }
+
+        async function createUser2Plan() {
+            const token = currentUser2Token || USER2_TOKEN;
+            const result = await apiCall('/roadmap/studyplan/create/', token, 'POST', {
+                main_topic: 'Vue.js Development for User 2',
+                available_time: 30
+            });
+            
+            const resultsDiv = document.getElementById('user2-results');
+            if (result.status === 201) {
+                resultsDiv.innerHTML = `<div class="success">✅ User 2 created study plan successfully!</div>`;
+                setTimeout(fetchUser2Data, 1000); // Refresh data
+            } else {
+                resultsDiv.innerHTML = `<div class="error">❌ Error creating plan: ${JSON.stringify(result.data)}</div>`;
+            }
+        }
+
+        // Unauthenticated test
+        async function fetchUnauthenticatedData() {
+            const result = await apiCall('/roadmap/user_study_plans/');
+            
+            const resultsDiv = document.getElementById('unauth-results');
+            resultsDiv.innerHTML = `
+                <div>Status: ${result.status}</div>
+                <div>Response: ${JSON.stringify(result.data, null, 2)}</div>
+            `;
+        }
+
+        // Load initial data on page load
+        window.onload = function() {
+            fetchUser1Data();
+            fetchUser2Data();
+            fetchUnauthenticatedData();
+        };
+    </script>
+</body>
+</html>

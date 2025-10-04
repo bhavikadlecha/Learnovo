@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   getStudyPlansFromStorage,
@@ -8,10 +9,15 @@ import {
 } from "../utils/studyPlanUtils";
 
 const Progress = () => {
-  const { user } = useAuth();
+  const { user, isLoggedIn, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [studyPlans, setStudyPlans] = useState([]);
+  const [filteredStudyPlans, setFilteredStudyPlans] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Automatic filtering by creation date - show recent items first (this week)
+  const dateFilter = 'week'; // Fixed to show recent items automatically
 
   useEffect(() => {
     fetchStudyPlans();
@@ -57,6 +63,28 @@ const Progress = () => {
     }
   };
 
+  // Automatic filtering by creation date - show recent items first (this week)
+  useEffect(() => {
+    let filtered = [...studyPlans];
+    
+    // Automatically filter by date range (this week)
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 7);
+    
+    filtered = filtered.filter(plan => {
+      const createdDate = new Date(plan.created_at);
+      const createdDateOnly = new Date(createdDate.getFullYear(), createdDate.getMonth(), createdDate.getDate());
+      return createdDateOnly >= weekAgo;
+    });
+    
+    // Sort by creation date (newest first)
+    filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    
+    setFilteredStudyPlans(filtered);
+  }, [studyPlans]);
+
   const getLocalStorageStudyPlans = () => {
     const plans = getStudyPlansFromStorage();
     return plans.map((plan, index) => ({
@@ -64,6 +92,7 @@ const Progress = () => {
       main_topic: plan.main_topic || plan.topic || "Unknown Topic",
       available_time: plan.available_time || plan.studyHours || 0,
       created_at: plan.created_at || new Date().toISOString().split("T")[0],
+      purpose_of_study: plan.purpose_of_study || plan.studyPurpose || "",
       roadmaps: plan.roadmaps || [],
     }));
   };
@@ -170,12 +199,48 @@ const Progress = () => {
       day: "numeric",
     });
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading your study plans...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user is not logged in
+  if (!isLoggedIn || !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-16">
+            <div className="bg-white rounded-xl shadow-lg p-8 max-w-md mx-auto">
+              <div className="text-6xl mb-6 text-blue-400">📊</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">Access Your Progress</h2>
+              <p className="text-gray-600 mb-6">
+                Sign in to track your learning progress and see detailed statistics across all your study plans.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  onClick={() => navigate('/login')}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => navigate('/register')}
+                  className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
+                >
+                  Create Account
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mt-4">
+                Monitor your learning journey with detailed analytics!
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -193,6 +258,8 @@ const Progress = () => {
           </p>
         </header>
 
+        {/* Automatically showing recent study plans (this week) - sorted by newest first */}
+
         {studyPlans.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
             <div className="text-6xl mb-4 text-gray-400">�</div>
@@ -209,11 +276,27 @@ const Progress = () => {
               Create Study Plan
             </button>
           </div>
+        ) : filteredStudyPlans.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="bg-white rounded-lg shadow-lg p-8 max-w-md mx-auto">
+              <div className="text-6xl mb-4 text-gray-400">🔍</div>
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">No Study Plans Match Your Filter</h3>
+              <p className="text-gray-600 mb-4">
+                Try selecting a different time period to see more results.
+              </p>
+              <button
+                onClick={() => setDateFilter('week')}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-all"
+              >
+                Reset Filter
+              </button>
+            </div>
+          </div>
         ) : (
           <>
             {/* Study Plans */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {studyPlans.map((plan) => {
+              {filteredStudyPlans.map((plan) => {
                 const stats = calculateProgress(plan);
 
                 return (
@@ -227,6 +310,17 @@ const Progress = () => {
                         <span className="text-sm bg-white bg-opacity-20 px-2 py-1 rounded-full">
                           {plan.available_time}h total
                         </span>
+                        {/* NEW badge for items created today */}
+                        {(() => {
+                          const today = new Date();
+                          const createdDate = new Date(plan.created_at);
+                          const isToday = createdDate.toDateString() === today.toDateString();
+                          return isToday ? (
+                            <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full">
+                              NEW
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                       <h3 className="text-xl font-bold mb-1">
                         {plan.main_topic}
@@ -238,6 +332,19 @@ const Progress = () => {
 
                     {/* Card Body */}
                     <div className="p-6">
+                      {/* Purpose of Study */}
+                      {plan.purpose_of_study && (
+                        <div className="mb-4">
+                          <div className="flex items-start text-gray-700">
+                            <span className="mr-2 mt-0.5">🎯</span>
+                            <div>
+                              <p className="text-sm font-medium text-gray-500 mb-1">Purpose</p>
+                              <p className="text-sm">{plan.purpose_of_study}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Progress Bar */}
                       <div className="mb-6">
                         <div className="flex justify-between items-center mb-2">

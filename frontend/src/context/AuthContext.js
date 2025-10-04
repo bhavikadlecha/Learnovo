@@ -40,9 +40,31 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    // Clear all authentication data
     localStorage.removeItem('access');
     localStorage.removeItem('refresh');
     localStorage.removeItem('user');
+    
+    // Clear all user-specific data to prevent data leakage between users
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      // Remove study plans, progress, and roadmap data (including user-specific keys)
+      if (key && (
+        key.includes('studyPlans') ||
+        key.includes('roadmap_progress_') ||
+        key.includes('nodeStatuses') ||
+        key.includes('userProgress_') ||
+        key.includes('user_roadmaps_') ||
+        key.includes('_user_') // This will catch all user-specific keys
+      )) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    // Remove identified keys
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
     setIsLoggedIn(false);
     setUser(null);
   };

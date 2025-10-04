@@ -20,24 +20,172 @@ GROQ_API_KEY = getattr(settings, 'GROQ_API_KEY', os.environ.get('GROQ_API_KEY'))
 User = get_user_model()
 
 # ===== Fallback function if AI fails =====
-def get_fallback_roadmap(topics):
-    return {
-        "roadmaps": [
+def get_fallback_roadmap(topics, purpose="General"):
+    """Generate a purpose-aware fallback roadmap with proper subtopics"""
+    if isinstance(topics, str):
+        topics = [topics]
+    
+    main_topic = topics[0] if topics else "Learning Topic"
+    
+    # Generate purpose-specific fallback roadmaps
+    roadmap_items = []
+    
+    if "academic" in purpose.lower() or "exam" in purpose.lower():
+        # Maximum depth for academic purposes
+        base_topics = [
             {
-                "id": "1",
-                "topic": "Introduction",
-                "estimated_time_hours": 0.5,
-                "prerequisites": [],
-                "subtopics": [
-                    {
-                        "id": "1.1",
-                        "topic": f"Overview of {', '.join(topics)}",
-                        "estimated_time_hours": 0.25,
-                        "prerequisites": ["1"]
-                    }
-                ]
+                "name": f"Foundation Theory in {main_topic}",
+                "subtopics": ["Core Definitions and Terminology", "Mathematical Foundations", "Theoretical Framework", "Historical Development", "Key Principles", "Literature Review", "Research Methodology"]
+            },
+            {
+                "name": f"Analytical Methods in {main_topic}",
+                "subtopics": ["Problem Solving Techniques", "Derivations and Proofs", "Mathematical Analysis", "Case Studies", "Research Methods", "Data Analysis", "Statistical Methods"]
+            },
+            {
+                "name": f"Advanced Theoretical Concepts in {main_topic}",
+                "subtopics": ["Complex Applications", "Advanced Theory", "Mathematical Models", "Current Research", "Interdisciplinary Connections", "Computational Methods"]
+            },
+            {
+                "name": f"Research and Analysis in {main_topic}",
+                "subtopics": ["Independent Research", "Thesis Preparation", "Academic Writing", "Peer Review Process", "Conference Presentations", "Publication Methods"]
+            },
+            {
+                "name": f"Specialized Applications in {main_topic}",
+                "subtopics": ["Industry Applications", "Cross-disciplinary Studies", "Innovation and Development", "Future Research Directions", "Ethical Considerations"]
+            },
+            {
+                "name": f"Assessment and Evaluation in {main_topic}",
+                "subtopics": ["Practice Problems", "Mock Examinations", "Revision Strategies", "Performance Analysis", "Self-Assessment", "Peer Evaluation"]
             }
         ]
+    elif "job" in purpose.lower() or "career" in purpose.lower() or "interview" in purpose.lower():
+        # High depth for job preparation
+        base_topics = [
+            {
+                "name": f"Industry Fundamentals of {main_topic}",
+                "subtopics": ["Market Overview", "Industry Standards", "Key Players", "Current Trends", "Salary Expectations", "Growth Opportunities"]
+            },
+            {
+                "name": f"Core Technical Skills in {main_topic}",
+                "subtopics": ["Essential Technologies", "Tool Proficiency", "Best Practices", "Code Quality", "Testing Methods", "Documentation"]
+            },
+            {
+                "name": f"Practical Application and Projects in {main_topic}",
+                "subtopics": ["Real-world Projects", "Portfolio Development", "GitHub Contributions", "Open Source Participation", "Problem Solving"]
+            },
+            {
+                "name": f"Interview Preparation for {main_topic}",
+                "subtopics": ["Technical Questions", "Coding Challenges", "System Design", "Behavioral Questions", "Mock Interviews", "Resume Optimization"]
+            },
+            {
+                "name": f"Professional Skills in {main_topic}",
+                "subtopics": ["Project Management", "Team Collaboration", "Client Communication", "Agile Methodologies", "Leadership Skills"]
+            },
+            {
+                "name": f"Career Development in {main_topic}",
+                "subtopics": ["Networking Strategies", "Personal Branding", "Continuous Learning", "Industry Certifications", "Mentorship", "Career Planning"]
+            }
+        ]
+    elif "skill" in purpose.lower():
+        # Medium-high depth for skill development
+        base_topics = [
+            {
+                "name": f"Getting Started with {main_topic}",
+                "subtopics": ["Environment Setup", "Essential Tools", "First Steps", "Quick Wins", "Basic Concepts"]
+            },
+            {
+                "name": f"Building Core Skills in {main_topic}",
+                "subtopics": ["Practice Exercises", "Mini Projects", "Skill Building", "Common Challenges", "Problem Solving"]
+            },
+            {
+                "name": f"Intermediate Applications of {main_topic}",
+                "subtopics": ["Real-world Scenarios", "Integration Techniques", "Performance Optimization", "Best Practices", "Troubleshooting"]
+            },
+            {
+                "name": f"Advanced Mastery of {main_topic}",
+                "subtopics": ["Advanced Techniques", "Complex Projects", "Innovation", "Creative Applications", "Expert Tips"]
+            },
+            {
+                "name": f"Professional Application of {main_topic}",
+                "subtopics": ["Portfolio Building", "Community Engagement", "Teaching Others", "Continuous Improvement", "Industry Standards"]
+            }
+        ]
+    elif "personal" in purpose.lower():
+        # Medium depth for personal learning
+        base_topics = [
+            {
+                "name": f"Introduction to {main_topic}",
+                "subtopics": ["What is it?", "Why Learn It?", "Getting Started", "Fun Facts"]
+            },
+            {
+                "name": f"Exploring {main_topic}",
+                "subtopics": ["Key Concepts", "Interesting Applications", "Creative Projects", "Personal Relevance"]
+            },
+            {
+                "name": f"Practicing {main_topic}",
+                "subtopics": ["Hands-on Exercises", "Fun Challenges", "Personal Projects", "Experimentation"]
+            },
+            {
+                "name": f"Mastering {main_topic}",
+                "subtopics": ["Advanced Concepts", "Creative Applications", "Sharing Knowledge", "Continued Learning"]
+            }
+        ]
+    else:
+        # Default general purpose
+        base_topics = [
+            {
+                "name": f"Introduction to {main_topic}",
+                "subtopics": ["Overview", "Key Concepts", "Getting Started", "Basic Terminology"]
+            },
+            {
+                "name": f"Core Concepts of {main_topic}",
+                "subtopics": ["Fundamental Principles", "Important Methods", "Common Applications", "Best Practices"]
+            },
+            {
+                "name": f"Advanced {main_topic}",
+                "subtopics": ["Complex Topics", "Advanced Techniques", "Specialized Areas", "Expert Insights"]
+            },
+            {
+                "name": f"Mastery of {main_topic}",
+                "subtopics": ["Integration", "Optimization", "Innovation", "Teaching Others"]
+            }
+        ]
+    
+    # Determine time allocation based on purpose depth
+    if "academic" in purpose.lower():
+        main_topic_hours = 8.0
+        subtopic_hours = 2.5
+    elif "job" in purpose.lower() or "career" in purpose.lower() or "competitive" in purpose.lower():
+        main_topic_hours = 6.0
+        subtopic_hours = 2.0
+    elif "skill" in purpose.lower():
+        main_topic_hours = 5.0
+        subtopic_hours = 1.5
+    else:  # personal or general
+        main_topic_hours = 4.0
+        subtopic_hours = 1.0
+    
+    for i, topic_info in enumerate(base_topics, 1):
+        subtopic_list = []
+        for j, subtopic_name in enumerate(topic_info["subtopics"], 1):
+            subtopic_list.append({
+                "id": f"{i}.{j}",
+                "topic": subtopic_name,
+                "estimated_time_hours": subtopic_hours,
+                "prerequisites": [str(i)]
+            })
+        
+        roadmap_items.append({
+            "id": str(i),
+            "topic": topic_info["name"],
+            "estimated_time_hours": main_topic_hours,
+            "prerequisites": [] if i == 1 else [str(i-1)],
+            "subtopics": subtopic_list
+        })
+    
+    return {
+        "main_topics": topics,
+        "roadmap": roadmap_items
     }
 
 # ===== Extract JSON from any messy model output =====
@@ -50,7 +198,7 @@ def extract_json(text):
         pass
     return None
 
-def generate_roadmap_with_groq(topics, total_hours=None):
+def generate_roadmap_with_groq(topics, total_hours=None, purpose="General"):
     import json, re, requests
 
     if isinstance(topics, str):
@@ -59,25 +207,104 @@ def generate_roadmap_with_groq(topics, total_hours=None):
     topic_str = ", ".join(topics)
 
     prompt = f"""
-You are a study planning assistant.
-Generate a hierarchical, interdependent study roadmap covering ALL of these topics: {topic_str}.
-- All topics MUST be connected logically with prerequisites and follow-ups.
-- Include any additional prerequisite topics needed to connect them into a single coherent learning path.
-- No redundancy in topics.
-- Output ONLY valid JSON, with no explanations, no markdown, no text outside the JSON object.
-- JSON format:
+You are an expert study planning assistant. Create a UNIQUE, PURPOSE-DRIVEN learning roadmap.
+
+TOPIC: {topic_str}
+PURPOSE: {purpose}
+
+🎯 CRITICAL: The roadmap MUST be completely different based on the purpose. Same topic, different purpose = completely different roadmap structure, content, and approach.
+
+🔢 DEPTH REQUIREMENTS BASED ON PURPOSE:
+
+📚 ACADEMICS ({purpose}):  
+- **DEPTH**: MAXIMUM (8-12 main topics, 4-8 subtopics each)
+- Structure: Semester/Course style with Units, Chapters, Modules, Sub-modules
+- Content: Theory-heavy with mathematical derivations, proofs, definitions, formulas
+- Subtopics: Literature reviews, research papers, assignments, lab experiments, case studies, theoretical analysis
+- Assessment: Quizzes, midterms, finals, thesis preparation, research projects
+- Detail Level: Include specific theorems, equations, experimental procedures, citation requirements
+- Time Allocation: Longer durations for deep theoretical understanding
+
+🏆 COMPETITIVE EXAM ({purpose}):
+- **DEPTH**: HIGH (6-10 main topics, 3-6 subtopics each)  
+- Structure: Strategy-based with high-weightage topics first, revision cycles
+- Content: Formula-focused, shortcut techniques, pattern recognition, exam tricks
+- Subtopics: Previous year analysis, mock tests, time management, speed techniques, formula sheets, error analysis
+- Assessment: Practice sets, timed tests, accuracy improvement, weak area identification
+- Detail Level: Include specific formulas, shortcut methods, common pitfalls, exam patterns
+- Time Allocation: Intensive practice-focused with quick revision cycles
+
+💼 JOB PREPARATION ({purpose}):
+- **DEPTH**: HIGH (6-9 main topics, 4-7 subtopics each)
+- Structure: Industry-focused with real-world applications, portfolio building
+- Content: Interview questions, system design, portfolio projects, industry standards
+- Subtopics: Resume building, coding challenges, behavioral interviews, industry trends, salary negotiation, networking
+- Assessment: Mock interviews, technical challenges, project demonstrations, portfolio reviews
+- Detail Level: Include specific interview questions, coding problems, system design examples, portfolio requirements
+- Time Allocation: Balanced between learning and practical application
+
+🛠️ SKILL DEVELOPMENT ({purpose}):
+- **DEPTH**: MEDIUM-HIGH (5-8 main topics, 3-5 subtopics each)
+- Structure: Project-based learning with hands-on experience, progressive complexity
+- Content: Tools, frameworks, practical implementations, best practices
+- Subtopics: Tutorials, mini-projects, real-world applications, troubleshooting, advanced techniques
+- Assessment: Project completion, skill demonstrations, portfolio building, peer reviews
+- Detail Level: Include specific tools, step-by-step guides, common issues, advanced tips
+- Time Allocation: Heavy emphasis on hands-on practice and project work
+
+🎓 PERSONAL LEARNING ({purpose}):
+- **DEPTH**: MEDIUM (4-7 main topics, 2-4 subtopics each)
+- Structure: Self-paced with flexible milestones, interest-driven exploration
+- Content: Conceptual understanding with practical applications, fun elements
+- Subtopics: Exploration topics, fun projects, personal interests, experimentation, creative applications
+- Assessment: Self-reflection, personal projects, knowledge application, sharing with others
+- Detail Level: Include interesting facts, creative projects, optional deep-dives, fun challenges
+- Time Allocation: Flexible pacing with emphasis on enjoyment and retention
+
+📖 BASIC/OVERVIEW ({purpose}):
+- **DEPTH**: LOW-MEDIUM (3-5 main topics, 2-3 subtopics each)
+- Structure: Simple progression from basics to intermediate
+- Content: Core concepts, essential knowledge, practical basics
+- Subtopics: Fundamentals, key concepts, basic applications, getting started guides
+- Assessment: Basic exercises, simple projects, knowledge checks
+- Detail Level: Focus on essentials, avoid overwhelming detail
+- Time Allocation: Quick learning with immediate application
+
+--- ADVANCED GENERATION RULES ---
+1. **DEPTH SCALING**: Follow the depth requirements above - Academic needs maximum detail, Personal needs medium depth
+2. **NO GENERIC TOPICS**: Every topic must be specific to the subject and purpose
+3. **LOGICAL FLOW**: Each topic must naturally lead to the next with clear prerequisites
+4. **PURPOSE ALIGNMENT**: Every subtopic must serve the specific purpose
+5. **VARIED COMPLEXITY**: Mix foundational, intermediate, and advanced concepts based on purpose depth
+6. **REALISTIC TIMING**: Estimate hours based on complexity and purpose requirements
+7. **UNIQUE STRUCTURE**: Different purposes should have completely different roadmap structures
+8. **DETAIL GRANULARITY**: 
+   - Academic: Include specific theories, formulas, research methods, detailed analysis
+   - Job/Competitive: Include specific questions, problems, real examples, practical scenarios
+   - Skill Development: Include specific tools, step-by-step processes, troubleshooting guides
+   - Personal: Include interesting applications, creative projects, optional extensions
+
+--- TOPIC-SPECIFIC INTELLIGENCE ---
+Analyze "{topic_str}" and create purpose-specific content:
+- For technical topics: Include relevant tools, frameworks, languages
+- For academic subjects: Include theoretical foundations, research areas
+- For skills: Include practical applications, industry standards
+- For exams: Include syllabus-specific content, exam patterns
+
+Output ONLY valid JSON without any markdown, explanations, or extra text:
+
 {{
   "main_topics": {topics},
   "roadmap": [
     {{
       "id": "1",
-      "topic": "Main Concept",
+      "topic": "Specific Topic Name (not generic)",
       "estimated_time_hours": 4,
       "prerequisites": [],
       "subtopics": [
         {{
           "id": "1.1",
-          "topic": "Sub Concept",
+          "topic": "Specific Subtopic (purpose-aligned)",
           "estimated_time_hours": 2,
           "prerequisites": ["1"]
         }}
@@ -87,6 +314,9 @@ Generate a hierarchical, interdependent study roadmap covering ALL of these topi
 }}
 """
 
+
+
+
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
@@ -95,8 +325,9 @@ Generate a hierarchical, interdependent study roadmap covering ALL of these topi
     payload = {
         "model": "llama-3.1-8b-instant",
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.3,
-        "max_tokens": 4000  # Increased to avoid truncation
+        "temperature": 0.7,  # Increased for more creativity and variation
+        "max_tokens": 8000,  # Significantly increased for more detailed output
+        "top_p": 0.9  # Added for more diverse outputs
     }
 
     def request_and_parse():
@@ -124,9 +355,20 @@ Generate a hierarchical, interdependent study roadmap covering ALL of these topi
 
     try:
         roadmap_data = request_and_parse()
+        print("✅ Successfully generated roadmap using GROQ API")
     except json.JSONDecodeError:
-        print("Warning: JSON was incomplete — retrying once...")
-        roadmap_data = request_and_parse()
+        print("⚠️ Warning: JSON was incomplete — retrying once...")
+        try:
+            roadmap_data = request_and_parse()
+            print("✅ Successfully generated roadmap using GROQ API (retry)")
+        except Exception as retry_error:
+            print(f"❌ GROQ API failed on retry: {retry_error}")
+            print("🔄 Falling back to template roadmap...")
+            return get_fallback_roadmap(topics, purpose)
+    except Exception as e:
+        print(f"❌ GROQ API failed: {e}")
+        print("🔄 Falling back to template roadmap...")
+        return get_fallback_roadmap(topics, purpose)
 
     # Scale durations if total_hours provided
     if total_hours and "roadmap" in roadmap_data:
@@ -172,7 +414,8 @@ def generate_roadmap(request):
 
             # Only fallback if API fully fails or JSON invalid
             if not roadmap_data:
-                roadmap_data = get_fallback_roadmap(topics)
+                purpose = body.get("purpose", "General")
+                roadmap_data = get_fallback_roadmap(topics, purpose)
 
             return JsonResponse(roadmap_data, safe=False)
 
@@ -205,17 +448,19 @@ def create_study_plan(request):
 
         topic_name = serializer.data.get("main_topic")
         available_time = serializer.data.get("available_time")
+        purpose_of_study = serializer.data.get("purpose_of_study", "General")
 
         roadmap_data = []
 
         # Try to generate roadmap via GROQ API directly
         try:
-            print(f"Attempting to generate roadmap for topic(s): {topic_name}")
+            print(f"Attempting to generate roadmap for topic(s): {topic_name} with purpose: {purpose_of_study}")
 
             # Call Groq API directly instead of internal request
             roadmap_data = generate_roadmap_with_groq(
                 topics=[topic_name],
-                total_hours=available_time
+                total_hours=available_time,
+                purpose=purpose_of_study
             )
 
             if not roadmap_data or "roadmap" not in roadmap_data:

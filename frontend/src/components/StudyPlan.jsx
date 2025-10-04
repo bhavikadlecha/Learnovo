@@ -6,16 +6,20 @@ import { getStudyPlansFromStorage, getProgressForPlan, calculateProgressStats, d
 import RoadmapGraph from './RoadmapGraph';
 
 const StudyPlan = () => {
-  const { user } = useAuth();
+  const { user, isLoggedIn, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [roadmaps, setRoadmaps] = useState([]);
+  const [filteredRoadmaps, setFilteredRoadmaps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [progressData, setProgressData] = useState({});
   const [openMenuId, setOpenMenuId] = useState(null);
   const [selectedRoadmap, setSelectedRoadmap] = useState(null);
   const [showRoadmapDetail, setShowRoadmapDetail] = useState(false);
+  
+  // Automatic filtering by creation date - show recent items first (this week)
+  const dateFilter = 'week'; // Fixed to show recent items automatically
 
   useEffect(() => {
     // Initial load
@@ -108,6 +112,32 @@ const StudyPlan = () => {
     }
   }, [roadmaps, searchParams, setSearchParams]); // Run when roadmaps or URL params change
 
+  // Automatic filtering by creation date - show recent items first (this week)
+  useEffect(() => {
+    let filtered = [...roadmaps];
+    
+    // Automatically filter by date range (this week)
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 7);
+    
+    filtered = filtered.filter(roadmap => {
+      const createdDate = new Date(roadmap.created_at);
+      const createdDateOnly = new Date(createdDate.getFullYear(), createdDate.getMonth(), createdDate.getDate());
+      return createdDateOnly >= weekAgo;
+    });
+    
+    // Sort by creation date (newest first) to emphasize recent activity
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at);
+      const dateB = new Date(b.created_at);
+      return dateB - dateA; // Newest first
+    });
+    
+    setFilteredRoadmaps(filtered);
+  }, [roadmaps]);
+
   const fetchRoadmaps = async (forceRefresh = false) => {
     setLoading(true);
     try {
@@ -168,6 +198,8 @@ const StudyPlan = () => {
       
       console.log('Final roadmaps data:', roadmapsData);
       setRoadmaps(roadmapsData);
+      
+      // No longer extracting purposes since filters are removed
       
       // Calculate progress for each roadmap using both saved progress and nodeStatuses
       const progress = {};
@@ -286,13 +318,49 @@ const StudyPlan = () => {
     });
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-8">
         <div className="max-w-6xl mx-auto">
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading your study plans...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user is not logged in
+  if (!isLoggedIn || !user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center py-12">
+            <div className="bg-white rounded-xl shadow-lg p-8 max-w-md mx-auto">
+              <div className="text-6xl mb-6 text-purple-400">🔐</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">Sign In Required</h2>
+              <p className="text-gray-600 mb-6">
+                Please sign in to view and manage your study plans. Create an account to start your personalized learning journey!
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  onClick={() => navigate('/login')}
+                  className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => navigate('/register')}
+                  className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
+                >
+                  Sign Up
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mt-4">
+                Join thousands of learners creating structured study plans!
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -332,6 +400,8 @@ const StudyPlan = () => {
           </div>
         </div>
 
+        {/* Automatically showing recent study plans (this week) - sorted by newest first */}
+
         {/* Study Plans Grid */}
         {roadmaps.length === 0 ? (
           <div className="text-center py-12">
@@ -349,9 +419,25 @@ const StudyPlan = () => {
               </button>
             </div>
           </div>
+        ) : filteredRoadmaps.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="bg-white rounded-lg shadow-lg p-8 max-w-md mx-auto">
+              <div className="text-6xl mb-4 text-gray-400">🔍</div>
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">No Study Plans Match Your Filters</h3>
+              <p className="text-gray-600 mb-4">
+                Try adjusting your filters to see more results.
+              </p>
+              <button
+                onClick={() => setFilters({ dateRange: 'week', purpose: 'all' })}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all"
+              >
+                Reset Filters
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {roadmaps.map((roadmap) => {
+            {filteredRoadmaps.map((roadmap) => {
               const progress = progressData[roadmap.id] || { completed: 0, total: 0, percentage: 0 };
               
               return (
@@ -364,9 +450,22 @@ const StudyPlan = () => {
                   <div className="bg-gradient-to-r from-purple-500 to-indigo-500 p-4">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <h3 className="text-xl font-bold text-white truncate">
-                          {roadmap.main_topic || roadmap.title}
-                        </h3>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-xl font-bold text-white truncate">
+                            {roadmap.main_topic || roadmap.title}
+                          </h3>
+                          {/* New badge for items created today */}
+                          {(() => {
+                            const today = new Date();
+                            const createdDate = new Date(roadmap.created_at);
+                            const isToday = createdDate.toDateString() === today.toDateString();
+                            return isToday ? (
+                              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full">
+                                NEW
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
                         <p className="text-purple-100 text-sm">
                           Created {formatDate(roadmap.created_at)}
                         </p>
@@ -400,6 +499,19 @@ const StudyPlan = () => {
                 
                   {/* Card Content */}
                   <div className="p-6">
+                    {/* Purpose of Study */}
+                    {roadmap.purpose_of_study && (
+                      <div className="mb-4">
+                        <div className="flex items-start text-gray-700">
+                          <span className="mr-2 mt-0.5">🎯</span>
+                          <div>
+                            <p className="text-sm font-medium text-gray-500 mb-1">Purpose</p>
+                            <p className="text-sm">{roadmap.purpose_of_study}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Available Time */}
                     <div className="mb-4">
                       <div className="flex items-center text-gray-600 text-sm">
@@ -410,8 +522,6 @@ const StudyPlan = () => {
                         </span>
                       </div>
                     </div>
-
-                    
 
                     
 

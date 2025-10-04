@@ -1,9 +1,29 @@
 // Shared utility functions for study plan data management
 
-export const getStudyPlansFromStorage = () => {
+// Helper function to get user-specific localStorage key
+const getUserSpecificKey = (baseKey, userId = null) => {
+  // Try to get user ID from localStorage if not provided
+  if (!userId) {
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        userId = user.id || user.email; // Use ID or email as fallback
+      }
+    } catch (error) {
+      console.warn('Could not get user data for localStorage key:', error);
+    }
+  }
+  
+  // If we have a user ID, make the key user-specific
+  return userId ? `${baseKey}_user_${userId}` : baseKey;
+};
+
+export const getStudyPlansFromStorage = (userId = null) => {
   try {
-    const data = localStorage.getItem('studyPlans');
-    console.log('getStudyPlansFromStorage - raw data:', data);
+    const key = getUserSpecificKey('studyPlans', userId);
+    const data = localStorage.getItem(key);
+    console.log('getStudyPlansFromStorage - key:', key, 'raw data:', data);
     const parsed = data ? JSON.parse(data) : [];
     console.log('getStudyPlansFromStorage - parsed data:', parsed);
     return parsed;
@@ -13,17 +33,18 @@ export const getStudyPlansFromStorage = () => {
   }
 };
 
-export const saveStudyPlanToStorage = (newPlan) => {
+export const saveStudyPlanToStorage = (newPlan, userId = null) => {
   try {
     console.log('saveStudyPlanToStorage called with:', newPlan);
-    const existing = getStudyPlansFromStorage();
+    const existing = getStudyPlansFromStorage(userId);
     console.log('Existing plans:', existing);
     
     const updatedPlans = [...existing, newPlan];
     console.log('Updated plans array:', updatedPlans);
     
-    localStorage.setItem('studyPlans', JSON.stringify(updatedPlans));
-    console.log('Saved to localStorage successfully');
+    const key = getUserSpecificKey('studyPlans', userId);
+    localStorage.setItem(key, JSON.stringify(updatedPlans));
+    console.log('Saved to localStorage successfully with key:', key);
     
     // Dispatch a custom event to notify other components
     window.dispatchEvent(new CustomEvent('studyPlansUpdated', { 
@@ -38,16 +59,20 @@ export const saveStudyPlanToStorage = (newPlan) => {
   }
 };
 
-export const deleteStudyPlanFromStorage = (planId) => {
+export const deleteStudyPlanFromStorage = (planId, userId = null) => {
   try {
-    const existing = getStudyPlansFromStorage();
+    const existing = getStudyPlansFromStorage(userId);
     const updatedPlans = existing.filter(plan => plan.id !== planId);
-    localStorage.setItem('studyPlans', JSON.stringify(updatedPlans));
     
-    // Also remove progress data for this plan
-    localStorage.removeItem(`roadmap_progress_${planId}`);
-    // Remove plan-specific nodeStatuses
-    localStorage.removeItem(`nodeStatuses_${planId}`);
+    const key = getUserSpecificKey('studyPlans', userId);
+    localStorage.setItem(key, JSON.stringify(updatedPlans));
+    
+    // Also remove progress data for this plan (make it user-specific)
+    const progressKey = getUserSpecificKey(`roadmap_progress_${planId}`, userId);
+    const nodeStatusKey = getUserSpecificKey(`nodeStatuses_${planId}`, userId);
+    
+    localStorage.removeItem(progressKey);
+    localStorage.removeItem(nodeStatusKey);
     
     // Dispatch a custom event to notify other components
     window.dispatchEvent(new CustomEvent('studyPlansUpdated', { 
@@ -61,7 +86,7 @@ export const deleteStudyPlanFromStorage = (planId) => {
   }
 };
 
-export const initializeProgressForPlan = (planId, roadmaps) => {
+export const initializeProgressForPlan = (planId, roadmaps, userId = null) => {
   try {
     if (roadmaps && Array.isArray(roadmaps)) {
       const initialProgress = {};
@@ -86,8 +111,9 @@ export const initializeProgressForPlan = (planId, roadmaps) => {
         initialProgress[topicName] = 'not-started';
       });
       
-      localStorage.setItem(`roadmap_progress_${planId}`, JSON.stringify(initialProgress));
-      console.log('Initialized progress data:', initialProgress);
+      const key = getUserSpecificKey(`roadmap_progress_${planId}`, userId);
+      localStorage.setItem(key, JSON.stringify(initialProgress));
+      console.log('Initialized progress data:', initialProgress, 'with key:', key);
       return initialProgress;
     }
     return {};
@@ -97,11 +123,12 @@ export const initializeProgressForPlan = (planId, roadmaps) => {
   }
 };
 
-export const updateTopicProgress = (planId, topicName, newStatus) => {
+export const updateTopicProgress = (planId, topicName, newStatus, userId = null) => {
   try {
-    const currentProgress = JSON.parse(localStorage.getItem(`roadmap_progress_${planId}`)) || {};
+    const key = getUserSpecificKey(`roadmap_progress_${planId}`, userId);
+    const currentProgress = JSON.parse(localStorage.getItem(key)) || {};
     currentProgress[topicName] = newStatus;
-    localStorage.setItem(`roadmap_progress_${planId}`, JSON.stringify(currentProgress));
+    localStorage.setItem(key, JSON.stringify(currentProgress));
     
     // Dispatch event to notify components of progress update
     window.dispatchEvent(new CustomEvent('progressUpdated', { 
@@ -115,9 +142,10 @@ export const updateTopicProgress = (planId, topicName, newStatus) => {
   }
 };
 
-export const getProgressForPlan = (planId) => {
+export const getProgressForPlan = (planId, userId = null) => {
   try {
-    const savedProgress = localStorage.getItem(`roadmap_progress_${planId}`);
+    const key = getUserSpecificKey(`roadmap_progress_${planId}`, userId);
+    const savedProgress = localStorage.getItem(key);
     return savedProgress ? JSON.parse(savedProgress) : {};
   } catch (error) {
     console.error('Error getting progress for plan:', error);

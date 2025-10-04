@@ -9,10 +9,11 @@ class RoadmapSerializer(serializers.ModelSerializer):
 
 class StudyPlanSerializer(serializers.ModelSerializer):
     roadmaps = RoadmapSerializer(many=True, read_only=True)
+    purpose_of_study = serializers.CharField(required=False, allow_blank=True, max_length=200)
 
     class Meta:
         model = StudyPlan
-        fields = ['id', 'main_topic', 'available_time', 'created_at', 'roadmaps', 'user']
+        fields = ['id', 'main_topic', 'available_time', 'created_at', 'roadmaps', 'user', 'purpose_of_study']
         read_only_fields = ['id', 'created_at']
         extra_kwargs = {'user': {'required': False}}
 

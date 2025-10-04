@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getProgressForPlan } from '../utils/studyPlanUtils';
 
 const Profile = () => {
   const { user, logout, updateUser } = useAuth();
@@ -48,12 +49,12 @@ const Profile = () => {
       let totalTasks = 0;
       let completedTasks = 0;
 
-      // Calculate stats from localStorage progress
+      // Calculate stats from user-specific localStorage progress
+      const userId = user?.id || user?.email;
       roadmaps.forEach(roadmap => {
         try {
-          const savedProgress = localStorage.getItem(`roadmap_progress_${roadmap.id}`);
-          if (savedProgress) {
-            const progress = JSON.parse(savedProgress);
+          const progress = getProgressForPlan(roadmap.id, userId);
+          if (progress && Object.keys(progress).length > 0) {
             const total = Object.keys(progress).length;
             const completed = Object.values(progress).filter(status => status === 'completed').length;
             totalTasks += total;

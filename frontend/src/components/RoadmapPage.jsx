@@ -6,16 +6,46 @@ import axios from 'axios';
 const RoadmapPage = () => {
   const [roadmapCards, setRoadmapCards] = useState([]);
   const [userRoadmaps, setUserRoadmaps] = useState([]);
+  const [filteredUserRoadmaps, setFilteredUserRoadmaps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [customTopic, setCustomTopic] = useState('');
   const [customHours, setCustomHours] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  // Automatic filtering by creation date - show recent items first (this week)
+  const dateFilter = 'week'; // Fixed to show recent items automatically
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Automatic filtering by creation date - show recent items first (this week)
+  useEffect(() => {
+    let filtered = [...userRoadmaps];
+    
+    // Automatically filter by date range (this week)
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 7);
+    
+    filtered = filtered.filter(roadmap => {
+      const createdDate = new Date(roadmap.created_at);
+      const createdDateOnly = new Date(createdDate.getFullYear(), createdDate.getMonth(), createdDate.getDate());
+      return createdDateOnly >= weekAgo;
+    });
+    
+    // Sort by creation date (newest first) to emphasize recent activity
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at);
+      const dateB = new Date(b.created_at);
+      return dateB - dateA; // Newest first
+    });
+    
+    setFilteredUserRoadmaps(filtered);
+  }, [userRoadmaps]);
 
   const fetchData = async () => {
     try {
@@ -25,7 +55,10 @@ const RoadmapPage = () => {
 
       // Fetch user-created roadmaps
       const userRoadmapsResponse = await axios.get('http://localhost:8000/api/roadmap/user_roadmaps/');
-      setUserRoadmaps(userRoadmapsResponse.data.roadmaps);
+      const roadmaps = userRoadmapsResponse.data.roadmaps;
+      setUserRoadmaps(roadmaps);
+      
+      // No longer extracting purposes since filters are removed
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -141,8 +174,28 @@ const RoadmapPage = () => {
             <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
               Your <span className="bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">Created Roadmaps</span>
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {userRoadmaps.map((roadmap) => (
+            
+            {/* Automatically showing recent roadmaps (this week) - sorted by newest first */}
+
+            {filteredUserRoadmaps.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="bg-white rounded-lg shadow-lg p-8 max-w-md mx-auto">
+                  <div className="text-6xl mb-4 text-gray-400">�</div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">No Recent Roadmaps</h3>
+                  <p className="text-gray-600 mb-4">
+                    No roadmaps created in the past week. Create a new roadmap to get started!
+                  </p>
+                  <button
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-all"
+                  >
+                    Create New Roadmap
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredUserRoadmaps.map((roadmap) => (
                 <div
                   key={roadmap.id}
                   onClick={() => handleUserRoadmapClick(roadmap)}
@@ -152,6 +205,17 @@ const RoadmapPage = () => {
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-2xl">📚</span>
                       <div className="flex items-center space-x-2">
+                        {/* New badge for items created today */}
+                        {(() => {
+                          const today = new Date();
+                          const createdDate = new Date(roadmap.created_at);
+                          const isToday = createdDate.toDateString() === today.toDateString();
+                          return isToday ? (
+                            <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full">
+                              NEW
+                            </span>
+                          ) : null;
+                        })()}
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(roadmap.proficiency)}`}>
                           {roadmap.proficiency}
                         </span>
@@ -182,6 +246,7 @@ const RoadmapPage = () => {
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
 

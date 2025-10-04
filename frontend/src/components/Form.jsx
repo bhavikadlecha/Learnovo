@@ -8,6 +8,7 @@ const Form = () => {
   const [formData, setFormData] = useState({
     topic: '',
     studyHours: '',
+    purposeOfStudy: '', // User can enter anything
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,13 +30,19 @@ const Form = () => {
       const payload = {
         main_topic: formData.topic,
         available_time: parseInt(formData.studyHours, 10),
+        purpose_of_study: formData.purposeOfStudy,
       };
       
       console.log("Sending payload:", payload);
       
+      // Add authentication token to the request
+      const token = localStorage.getItem('access');
+      const headers = token ? { 'Authorization': `Token ${token}` } : {};
+      
       const response = await axios.post(
         'http://localhost:8000/api/roadmap/studyplan/create/',
-        payload
+        payload,
+        { headers }
       );
 
       console.log("Response received:", response.data);
@@ -74,12 +81,16 @@ const Form = () => {
       
       console.log('About to save to localStorage:', newStudyPlan);
       
-      // Use utility function to save and notify other components
-      const saveSuccess = saveStudyPlanToStorage(newStudyPlan);
+      // Get current user for user-specific storage
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = userData.id || userData.email;
+      
+      // Use utility function to save and notify other components (user-specific)
+      const saveSuccess = saveStudyPlanToStorage(newStudyPlan, userId);
       console.log('Save success:', saveSuccess);
 
-      // Initialize progress tracking for this roadmap
-      initializeProgressForPlan(plan.id, roadmap.roadmap);
+      // Initialize progress tracking for this roadmap (user-specific)
+      initializeProgressForPlan(plan.id, roadmap.roadmap, userId);
 
       console.log('Saved study plan to localStorage:', newStudyPlan);
       
@@ -189,9 +200,28 @@ const Form = () => {
             </p>
           </div>
 
+          <div>
+            <label htmlFor="purposeOfStudy" className="block text-sm font-medium text-gray-700 mb-2">
+              What's your purpose of study?
+            </label>
+            <input
+              type="text"
+              id="purposeOfStudy"
+              name="purposeOfStudy"
+              value={formData.purposeOfStudy}
+              onChange={handleChange}
+              required
+              placeholder="e.g., Competitive Exam, Career Development, Academic Performance, Personal Interest..."
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Describe your study goal - this helps us tailor the learning roadmap to your specific needs
+            </p>
+          </div>
+
           <button
             type="submit"
-            disabled={isLoading || !formData.topic.trim() || !formData.studyHours}
+            disabled={isLoading || !formData.topic.trim() || !formData.studyHours || !formData.purposeOfStudy}
             className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-[1.02] disabled:scale-100 disabled:cursor-not-allowed shadow-lg"
           >
             {isLoading ? (
@@ -207,7 +237,7 @@ const Form = () => {
 
         <div className="mt-6 text-center">
           <p className="text-xs text-gray-500">
-            We'll create a personalized learning roadmap based on your topic and available time
+            We'll create a personalized learning roadmap based on your topic, available time, and study purpose
           </p>
         </div>
       </div>
