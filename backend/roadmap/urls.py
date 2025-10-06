@@ -13,4 +13,6 @@ urlpatterns = [
     path('user_roadmaps/', views.get_user_roadmaps, name='get_user_roadmaps'),
     path('user_roadmaps/<int:roadmap_id>/', views.delete_user_roadmap, name='delete_user_roadmap'),
     path('roadmap_detail/<int:roadmap_id>/', views.get_roadmap_detail, name='get_roadmap_detail'),
+    path('purpose-choices/', views.get_purpose_choices, name='get_purpose_choices'),
+    path('test-groq/', views.test_groq_api, name='test_groq_api'),
 ]

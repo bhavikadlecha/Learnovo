@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { saveStudyPlanToStorage, initializeProgressForPlan } from '../utils/studyPlanUtils';
@@ -8,11 +8,39 @@ const Form = () => {
   const [formData, setFormData] = useState({
     topic: '',
     studyHours: '',
-    purposeOfStudy: '', // User can enter anything
+    purposeOfStudy: 'personal_interest', // Default value
   });
+  const [purposeChoices, setPurposeChoices] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Fetch purpose choices on component mount
+  useEffect(() => {
+    const fetchPurposeChoices = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/api/roadmap/purpose-choices/');
+        setPurposeChoices(response.data.choices);
+      } catch (error) {
+        console.error('Failed to fetch purpose choices:', error);
+        // Fallback choices if API fails
+        setPurposeChoices([
+          { value: 'academics', label: 'Academics' },
+          { value: 'competitive_exam', label: 'Competitive Exam' },
+          { value: 'skill_development', label: 'Skill Development' },
+          { value: 'career_change', label: 'Career Change' },
+          { value: 'personal_interest', label: 'Personal Interest' },
+          { value: 'professional_certification', label: 'Professional Certification' },
+          { value: 'interview_preparation', label: 'Interview Preparation' },
+          { value: 'teaching_preparation', label: 'Teaching Preparation' },
+          { value: 'research', label: 'Research' },
+          { value: 'other', label: 'Other' },
+        ]);
+      }
+    };
+
+    fetchPurposeChoices();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -204,18 +232,23 @@ const Form = () => {
             <label htmlFor="purposeOfStudy" className="block text-sm font-medium text-gray-700 mb-2">
               What's your purpose of study?
             </label>
-            <input
-              type="text"
+            <select
               id="purposeOfStudy"
               name="purposeOfStudy"
               value={formData.purposeOfStudy}
               onChange={handleChange}
               required
-              placeholder="e.g., Competitive Exam, Career Development, Academic Performance, Personal Interest..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-500"
-            />
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 bg-white"
+            >
+              <option value="" disabled>Select your study purpose...</option>
+              {purposeChoices.map((choice) => (
+                <option key={choice.value} value={choice.value}>
+                  {choice.label}
+                </option>
+              ))}
+            </select>
             <p className="text-xs text-gray-500 mt-1">
-              Describe your study goal - this helps us tailor the learning roadmap to your specific needs
+              Select the primary purpose for your study plan - this helps us tailor the learning roadmap to your specific needs
             </p>
           </div>
 

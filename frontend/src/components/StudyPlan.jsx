@@ -17,6 +17,23 @@ const StudyPlan = () => {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [selectedRoadmap, setSelectedRoadmap] = useState(null);
   const [showRoadmapDetail, setShowRoadmapDetail] = useState(false);
+
+  // Helper function to convert purpose values to human-readable labels
+  const getPurposeLabel = (purposeValue) => {
+    const purposeMap = {
+      'academics': 'Academics',
+      'competitive_exam': 'Competitive Exam',
+      'skill_development': 'Skill Development',
+      'career_change': 'Career Change',
+      'personal_interest': 'Personal Interest',
+      'professional_certification': 'Professional Certification',
+      'interview_preparation': 'Interview Preparation',
+      'teaching_preparation': 'Teaching Preparation',
+      'research': 'Research',
+      'other': 'Other',
+    };
+    return purposeMap[purposeValue] || purposeValue;
+  };
   
   // Automatic filtering by creation date - show recent items first (this week)
   const dateFilter = 'week'; // Fixed to show recent items automatically
@@ -506,7 +523,7 @@ const StudyPlan = () => {
                           <span className="mr-2 mt-0.5">🎯</span>
                           <div>
                             <p className="text-sm font-medium text-gray-500 mb-1">Purpose</p>
-                            <p className="text-sm">{roadmap.purpose_of_study}</p>
+                            <p className="text-sm">{getPurposeLabel(roadmap.purpose_of_study)}</p>
                           </div>
                         </div>
                       </div>

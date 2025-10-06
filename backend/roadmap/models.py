@@ -18,14 +18,32 @@ class UserProgress(models.Model):
         return f"{self.user.username} - {self.topic.name}"
 
 class StudyPlan(models.Model):
+    PURPOSE_CHOICES = [
+        ('academics', 'Academics'),
+        ('competitive_exam', 'Competitive Exam'),
+        ('skill_development', 'Skill Development'),
+        ('career_change', 'Career Change'),
+        ('personal_interest', 'Personal Interest'),
+        ('professional_certification', 'Professional Certification'),
+        ('interview_preparation', 'Interview Preparation'),
+        ('teaching_preparation', 'Teaching Preparation'),
+        ('research', 'Research'),
+        ('other', 'Other'),
+    ]
+    
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     main_topic = models.CharField(max_length=255)
     available_time = models.IntegerField()
-    purpose_of_study = models.CharField(max_length=200, blank=True)  # Allow any text, increased length
+    purpose_of_study = models.CharField(
+        max_length=50, 
+        choices=PURPOSE_CHOICES, 
+        default='personal_interest',
+        help_text="Select the primary purpose for your study plan"
+    )
     created_at = models.DateField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.main_topic} ({self.purpose_of_study})"
+        return f"{self.main_topic} ({self.get_purpose_of_study_display()})"
 
 class RoadmapTopic(models.Model):
     study_plan = models.ForeignKey(StudyPlan, on_delete=models.CASCADE, related_name='roadmaps')
